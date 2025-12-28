@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_GITHUB_TOKEN>"
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "postgresql://user:password@localhost:5432/database"
+      }
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-mongodb"],
+      "env": {
+        "MONGODB_URI": "mongodb://localhost:27017"
+      }
+    },
+    "mysql": {
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/mcp-server-mysql"],
+      "env": {
+        "MYSQL_HOST": "localhost",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "root",
+        "MYSQL_PASSWORD": "<YOUR_PASSWORD>",
+        "MYSQL_DATABASE": "<YOUR_DATABASE>"
+      }
+    },
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "figma-developer-mcp", "--figma-api-key=<YOUR_FIGMA_API_KEY>", "--stdio"]
+    }
+  }
+}
