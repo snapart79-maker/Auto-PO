@@ -31,6 +31,16 @@ export class SupabaseProductRepository implements IProductRepository {
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      // 확장 필드 매핑
+      projectCode: row.project_code ?? undefined,
+      spec1: row.spec1 ?? undefined,
+      spec2: row.spec2 ?? undefined,
+      spec3: row.spec3 ?? undefined,
+      moq: row.moq ?? undefined,
+      productType: row.product_type ?? undefined,
+      unit: row.unit ?? undefined,
+      effectiveStartDate: row.effective_start_date ? new Date(row.effective_start_date) : undefined,
+      effectiveEndDate: row.effective_end_date ? new Date(row.effective_end_date) : undefined,
     }
     return Product.create(props)
   }
@@ -50,6 +60,16 @@ export class SupabaseProductRepository implements IProductRepository {
       unit_price: product.unitPrice?.amount ?? null,
       currency: product.unitPrice?.currency ?? 'KRW',
       is_active: product.isActive,
+      // 확장 필드 매핑
+      project_code: product.projectCode ?? null,
+      spec1: product.spec1 ?? null,
+      spec2: product.spec2 ?? null,
+      spec3: product.spec3 ?? null,
+      moq: product.moq ?? null,
+      product_type: product.productType ?? null,
+      unit: product.unit ?? null,
+      effective_start_date: product.effectiveStartDate?.toISOString().split('T')[0] ?? null,
+      effective_end_date: product.effectiveEndDate?.toISOString().split('T')[0] ?? null,
     }
   }
 

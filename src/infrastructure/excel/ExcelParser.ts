@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import type {
   InventoryUploadRow,
   ShipmentPlanRow,
+  InitialInventoryRow,
   ParseResult,
   ParseError,
   ColumnMapping,
@@ -168,6 +169,165 @@ export class ExcelParser {
       errors,
       totalRows: data.length - 1,
     }
+  }
+
+  /**
+   * 초기 재고 데이터 파싱
+   */
+  parseInitialInventoryData(data: unknown[][]): { success: boolean; rows: InitialInventoryRow[]; errors: ParseError[]; totalRows: number } {
+    if (data.length === 0) {
+      return { success: true, rows: [], errors: [], totalRows: 0 }
+    }
+
+    const headers = data[0] as string[]
+    const columnIndices = this.getInitialInventoryColumnIndices(headers)
+
+    // 필수 컬럼 검증
+    const requiredColumns = ['productCode', 'quantity', 'baseDate']
+    const missingColumns = requiredColumns.filter(
+      (col) => columnIndices[col as keyof typeof columnIndices] === undefined
+    )
+
+    if (missingColumns.length > 0) {
+      return {
+        success: false,
+        rows: [],
+        errors: [
+          {
+            row: 1,
+            column: 'header',
+            message: `필수 컬럼 누락: ${missingColumns.map((c) => this.getInitialInventoryColumnName(c)).join(', ')}`,
+          },
+        ],
+        totalRows: data.length - 1,
+      }
+    }
+
+    const rows: InitialInventoryRow[] = []
+    const errors: ParseError[] = []
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i] as unknown[]
+      const rowNumber = i + 1
+
+      try {
+        const parsedRow = this.parseInitialInventoryRow(row, columnIndices, rowNumber)
+        if (parsedRow) {
+          rows.push(parsedRow)
+        }
+      } catch (error) {
+        if (error instanceof RowParseError) {
+          errors.push(...error.errors)
+        }
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      rows,
+      errors,
+      totalRows: data.length - 1,
+    }
+  }
+
+  /**
+   * 초기 재고 행 파싱
+   */
+  private parseInitialInventoryRow(
+    row: unknown[],
+    columnIndices: Record<string, number | undefined>,
+    rowNumber: number
+  ): InitialInventoryRow | null {
+    const errors: ParseError[] = []
+
+    const productCode = this.getString(row[columnIndices.productCode ?? -1])
+    const quantityRaw = row[columnIndices.quantity ?? -1]
+    const baseDateRaw = row[columnIndices.baseDate ?? -1]
+    const remarks = this.getString(row[columnIndices.remarks ?? -1])
+
+    if (!productCode) {
+      errors.push({
+        row: rowNumber,
+        column: '품번',
+        message: '품번은 필수입니다',
+        value: productCode,
+      })
+    }
+
+    const quantity = this.parseNumber(quantityRaw)
+    if (quantity === null || quantity < 0) {
+      errors.push({
+        row: rowNumber,
+        column: '수량',
+        message: '수량은 0 이상이어야 합니다',
+        value: quantityRaw,
+      })
+    }
+
+    const baseDate = this.parseDate(baseDateRaw)
+    if (!baseDate) {
+      errors.push({
+        row: rowNumber,
+        column: '기준일',
+        message: '올바른 날짜 형식이 아닙니다',
+        value: baseDateRaw,
+      })
+    }
+
+    if (errors.length > 0) {
+      throw new RowParseError(errors)
+    }
+
+    return {
+      rowNumber,
+      productCode: productCode!,
+      quantity: quantity!,
+      baseDate: baseDate!,
+      remarks: remarks ?? undefined,
+    }
+  }
+
+  /**
+   * 초기 재고 컬럼 인덱스 매핑
+   */
+  private getInitialInventoryColumnIndices(
+    headers: string[]
+  ): Record<string, number | undefined> {
+    const columnNames: Record<string, string[]> = {
+      productCode: ['품번', 'product_code', 'productcode', 'code'],
+      quantity: ['수량', 'quantity', 'qty'],
+      baseDate: ['기준일', 'base_date', 'basedate', 'date'],
+      remarks: ['비고', 'remarks', 'memo', '메모'],
+    }
+
+    const indices: Record<string, number | undefined> = {}
+
+    for (const [key, names] of Object.entries(columnNames)) {
+      for (const name of names) {
+        const index = headers.findIndex(
+          (h) => h?.toLowerCase().trim() === name.toLowerCase().trim()
+        )
+        if (index !== -1) {
+          indices[key] = index
+          break
+        }
+      }
+    }
+
+    return indices
+  }
+
+  /**
+   * 초기 재고 컬럼 이름
+   */
+  private getInitialInventoryColumnName(key: string): string {
+    const mapping: Record<string, string> = {
+      productCode: '품번',
+      quantity: '수량',
+      baseDate: '기준일',
+      remarks: '비고',
+    }
+    return mapping[key] ?? key
   }
 
   /**

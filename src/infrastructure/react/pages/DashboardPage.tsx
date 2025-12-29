@@ -10,6 +10,7 @@ import { RecentOrdersWidget } from '../components/RecentOrdersWidget'
 import { MRPSummaryWidget } from '../components/MRPSummaryWidget'
 import { OrderStatusChart } from '../components/OrderStatusChart'
 import { InventoryChart } from '../components/InventoryChart'
+import { InventoryStatusWidget } from '../components/InventoryStatusWidget'
 import { useDashboard, getStatCardVariant } from '../hooks/useDashboard'
 import { SupabaseOrderRepository } from '@infrastructure/repositories/SupabaseOrderRepository'
 import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository'
@@ -118,6 +119,7 @@ export function DashboardPage() {
             statusCounts={orderStatusCounts}
             loading={isLoading}
           />
+          <InventoryStatusWidget loading={isLoading} />
           <InventoryChart
             lowStockProducts={lowStockProducts}
             loading={isLoading}

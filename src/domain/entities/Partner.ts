@@ -20,6 +20,22 @@ export interface PartnerProps {
   isActive: boolean
   createdAt?: Date
   updatedAt?: Date
+  // 확장 필드
+  note?: string
+  partnerGroup?: string
+  ceoName?: string
+  foundationDate?: Date
+  postalCode?: string
+  businessType?: string
+  industryType?: string
+  countryCode?: string
+  incoterms?: string
+  phone2?: string
+  website?: string
+  partnerContactPhone?: string
+  manager?: string
+  effectiveStartDate?: Date
+  effectiveEndDate?: Date
 }
 
 export interface ContactInfo {
@@ -73,6 +89,67 @@ export class Partner {
 
   get isActive(): boolean {
     return this.props.isActive
+  }
+
+  // 확장 필드 getter
+  get note(): string | undefined {
+    return this.props.note
+  }
+
+  get partnerGroup(): string | undefined {
+    return this.props.partnerGroup
+  }
+
+  get ceoName(): string | undefined {
+    return this.props.ceoName
+  }
+
+  get foundationDate(): Date | undefined {
+    return this.props.foundationDate
+  }
+
+  get postalCode(): string | undefined {
+    return this.props.postalCode
+  }
+
+  get businessType(): string | undefined {
+    return this.props.businessType
+  }
+
+  get industryType(): string | undefined {
+    return this.props.industryType
+  }
+
+  get countryCode(): string | undefined {
+    return this.props.countryCode
+  }
+
+  get incoterms(): string | undefined {
+    return this.props.incoterms
+  }
+
+  get phone2(): string | undefined {
+    return this.props.phone2
+  }
+
+  get website(): string | undefined {
+    return this.props.website
+  }
+
+  get partnerContactPhone(): string | undefined {
+    return this.props.partnerContactPhone
+  }
+
+  get manager(): string | undefined {
+    return this.props.manager
+  }
+
+  get effectiveStartDate(): Date | undefined {
+    return this.props.effectiveStartDate
+  }
+
+  get effectiveEndDate(): Date | undefined {
+    return this.props.effectiveEndDate
   }
 
   /**

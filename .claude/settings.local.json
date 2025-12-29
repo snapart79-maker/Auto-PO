@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Skill(feature-planner)",
+      "Bash(cat:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(pnpm run test:coverage:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm run type-check:*)",
+      "Bash(pnpm run lint:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm test)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm info:*)",
+      "Bash(pnpm run test:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run test:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(node -e:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7",
+    "figma",
+    "github",
+    "magic",
+    "playwright",
+    "sequential-thinking"
+  ]
+}

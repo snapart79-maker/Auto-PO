@@ -55,7 +55,7 @@ export function InventoryChart({ lowStockProducts, loading = false }: InventoryC
   const chartData = transformInventoryChartData(lowStockProducts)
 
   return (
-    <Card className="col-span-2">
+    <Card>
       <CardHeader>
         <CardTitle className="text-lg">재고 부족 품목 현황</CardTitle>
       </CardHeader>

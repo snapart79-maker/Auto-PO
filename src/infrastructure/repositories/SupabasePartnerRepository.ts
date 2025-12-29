@@ -29,6 +29,22 @@ export class SupabasePartnerRepository implements IPartnerRepository {
       isActive: row.is_active,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      // 확장 필드
+      note: row.note ?? undefined,
+      partnerGroup: row.partner_group ?? undefined,
+      ceoName: row.ceo_name ?? undefined,
+      foundationDate: row.foundation_date ? new Date(row.foundation_date) : undefined,
+      postalCode: row.postal_code ?? undefined,
+      businessType: row.business_type ?? undefined,
+      industryType: row.industry_type ?? undefined,
+      countryCode: row.country_code ?? undefined,
+      incoterms: row.incoterms ?? undefined,
+      phone2: row.phone2 ?? undefined,
+      website: row.website ?? undefined,
+      partnerContactPhone: row.partner_contact_phone ?? undefined,
+      manager: row.manager ?? undefined,
+      effectiveStartDate: row.effective_start_date ? new Date(row.effective_start_date) : undefined,
+      effectiveEndDate: row.effective_end_date ? new Date(row.effective_end_date) : undefined,
     }
     return Partner.create(props)
   }
@@ -46,6 +62,22 @@ export class SupabasePartnerRepository implements IPartnerRepository {
       contact_email: partner.contactEmail ?? null,
       currency: partner.currency,
       is_active: partner.isActive,
+      // 확장 필드
+      note: partner.note ?? null,
+      partner_group: partner.partnerGroup ?? null,
+      ceo_name: partner.ceoName ?? null,
+      foundation_date: partner.foundationDate?.toISOString().split('T')[0] ?? null,
+      postal_code: partner.postalCode ?? null,
+      business_type: partner.businessType ?? null,
+      industry_type: partner.industryType ?? null,
+      country_code: partner.countryCode ?? null,
+      incoterms: partner.incoterms ?? null,
+      phone2: partner.phone2 ?? null,
+      website: partner.website ?? null,
+      partner_contact_phone: partner.partnerContactPhone ?? null,
+      manager: partner.manager ?? null,
+      effective_start_date: partner.effectiveStartDate?.toISOString().split('T')[0] ?? null,
+      effective_end_date: partner.effectiveEndDate?.toISOString().split('T')[0] ?? null,
     }
   }
 

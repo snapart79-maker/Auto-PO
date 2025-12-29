@@ -1,19 +1,37 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Layout } from '@infrastructure/react/components/Layout'
+import { ERPLayout } from '@infrastructure/react/components/ERPLayout'
 
 // Lazy load pages for code splitting
+
+// Dashboard
 const DashboardPage = lazy(() => import('@infrastructure/react/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
+
+// 기준관리
 const CompanySettingsPage = lazy(() => import('@infrastructure/react/pages/CompanySettingsPage').then(m => ({ default: m.CompanySettingsPage })))
 const VehicleModelsPage = lazy(() => import('@infrastructure/react/pages/VehicleModelsPage').then(m => ({ default: m.VehicleModelsPage })))
 const PartnersPage = lazy(() => import('@infrastructure/react/pages/PartnersPage').then(m => ({ default: m.PartnersPage })))
 const ProductsPage = lazy(() => import('@infrastructure/react/pages/ProductsPage').then(m => ({ default: m.ProductsPage })))
 const ExchangeRatesPage = lazy(() => import('@infrastructure/react/pages/ExchangeRatesPage').then(m => ({ default: m.ExchangeRatesPage })))
+
+// 입고/출고
+const InboundStatusPage = lazy(() => import('@infrastructure/react/pages/InboundStatusPage').then(m => ({ default: m.InboundStatusPage })))
+const OutboundStatusPage = lazy(() => import('@infrastructure/react/pages/OutboundStatusPage').then(m => ({ default: m.OutboundStatusPage })))
+
+// 재고 관리
+const InventoryStatusPage = lazy(() => import('@infrastructure/react/pages/InventoryStatusPage').then(m => ({ default: m.InventoryStatusPage })))
+const InitialInventoryPage = lazy(() => import('@infrastructure/react/pages/InitialInventoryPage').then(m => ({ default: m.InitialInventoryPage })))
+const InventoryAdjustmentPage = lazy(() => import('@infrastructure/react/pages/InventoryAdjustmentPage').then(m => ({ default: m.InventoryAdjustmentPage })))
+
+// 발주 관리
+const ShipmentPlanPage = lazy(() => import('@infrastructure/react/pages/ShipmentPlanPage').then(m => ({ default: m.ShipmentPlanPage })))
+const MRPPage = lazy(() => import('@infrastructure/react/pages/MRPPage').then(m => ({ default: m.MRPPage })))
+const PurchaseOrdersPage = lazy(() => import('@infrastructure/react/pages/PurchaseOrdersPage').then(m => ({ default: m.PurchaseOrdersPage })))
+const VietnamOrderPage = lazy(() => import('@infrastructure/react/pages/VietnamOrderPage').then(m => ({ default: m.VietnamOrderPage })))
+
+// Legacy (기존 업로드 페이지 - 필요시 유지)
 const InventoryUploadPage = lazy(() => import('@infrastructure/react/pages/InventoryUploadPage').then(m => ({ default: m.InventoryUploadPage })))
 const ShipmentUploadPage = lazy(() => import('@infrastructure/react/pages/ShipmentUploadPage').then(m => ({ default: m.ShipmentUploadPage })))
-const MRPPage = lazy(() => import('@infrastructure/react/pages/MRPPage').then(m => ({ default: m.MRPPage })))
-const VietnamOrderPage = lazy(() => import('@infrastructure/react/pages/VietnamOrderPage').then(m => ({ default: m.VietnamOrderPage })))
-const PurchaseOrdersPage = lazy(() => import('@infrastructure/react/pages/PurchaseOrdersPage').then(m => ({ default: m.PurchaseOrdersPage })))
 
 /**
  * 페이지 로딩 폴백 컴포넌트
@@ -33,7 +51,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={<ERPLayout />}>
+          {/* Dashboard */}
           <Route
             index
             element={
@@ -42,6 +61,8 @@ function App() {
               </Suspense>
             }
           />
+
+          {/* 기준관리 */}
           <Route
             path="company"
             element={
@@ -82,7 +103,86 @@ function App() {
               </Suspense>
             }
           />
-          {/* Phase 5: Excel Upload */}
+
+          {/* 입고/출고 */}
+          <Route
+            path="inbound"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <InboundStatusPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="outbound"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <OutboundStatusPage />
+              </Suspense>
+            }
+          />
+
+          {/* 재고 관리 */}
+          <Route
+            path="inventory/status"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <InventoryStatusPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="inventory/initial"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <InitialInventoryPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="inventory/adjustment"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <InventoryAdjustmentPage />
+              </Suspense>
+            }
+          />
+
+          {/* 발주 관리 */}
+          <Route
+            path="shipment-plan"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <ShipmentPlanPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="mrp"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <MRPPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <PurchaseOrdersPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="mrp/vietnam"
+            element={
+              <Suspense fallback={<PageLoadingFallback />}>
+                <VietnamOrderPage />
+              </Suspense>
+            }
+          />
+
+          {/* Legacy Upload Pages (기존 호환성 유지) */}
           <Route
             path="upload/inventory"
             element={
@@ -96,32 +196,6 @@ function App() {
             element={
               <Suspense fallback={<PageLoadingFallback />}>
                 <ShipmentUploadPage />
-              </Suspense>
-            }
-          />
-          {/* Phase 6: MRP + Vietnam */}
-          <Route
-            path="mrp"
-            element={
-              <Suspense fallback={<PageLoadingFallback />}>
-                <MRPPage />
-              </Suspense>
-            }
-          />
-          <Route
-            path="mrp/vietnam"
-            element={
-              <Suspense fallback={<PageLoadingFallback />}>
-                <VietnamOrderPage />
-              </Suspense>
-            }
-          />
-          {/* Phase 7: Purchase Orders */}
-          <Route
-            path="orders"
-            element={
-              <Suspense fallback={<PageLoadingFallback />}>
-                <PurchaseOrdersPage />
               </Suspense>
             }
           />

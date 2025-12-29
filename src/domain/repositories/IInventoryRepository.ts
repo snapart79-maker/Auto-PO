@@ -5,6 +5,12 @@
  */
 
 import type { InventoryTransaction, TransactionType } from '../entities/InventoryTransaction'
+import type { InitialInventory } from '../entities/InitialInventory'
+import type {
+  InventoryAdjustment,
+  AdjustmentType,
+  AdjustmentReason,
+} from '../entities/InventoryAdjustment'
 import type { DateRange } from '../valueObjects/DateRange'
 
 export interface InventoryFilter {
@@ -77,4 +83,111 @@ export interface IInventoryRepository {
    * 배치별 삭제 (업로드 롤백)
    */
   deleteByBatch(uploadBatchId: string): Promise<void>
+}
+
+// ============================================
+// 초기 재고 관련 인터페이스
+// ============================================
+
+export interface InitialInventoryFilter {
+  productId?: string
+  baseDate?: Date
+  baseDateRange?: DateRange
+}
+
+export interface IInitialInventoryRepository {
+  /**
+   * ID로 조회
+   */
+  findById(id: string): Promise<InitialInventory | null>
+
+  /**
+   * 품목 ID와 기준일로 조회
+   */
+  findByProductAndDate(productId: string, baseDate: Date): Promise<InitialInventory | null>
+
+  /**
+   * 품목의 가장 최근 초기 재고 조회
+   */
+  findLatestByProduct(productId: string): Promise<InitialInventory | null>
+
+  /**
+   * 조건에 맞는 초기 재고 조회
+   */
+  findAll(filter?: InitialInventoryFilter): Promise<InitialInventory[]>
+
+  /**
+   * 저장 (생성 또는 업데이트)
+   */
+  save(initialInventory: InitialInventory): Promise<InitialInventory>
+
+  /**
+   * 일괄 저장
+   */
+  saveMany(initialInventories: InitialInventory[]): Promise<InitialInventory[]>
+
+  /**
+   * 삭제
+   */
+  delete(id: string): Promise<void>
+}
+
+// ============================================
+// 재고 조정 관련 인터페이스
+// ============================================
+
+export interface AdjustmentFilter {
+  productId?: string
+  adjustmentType?: AdjustmentType
+  reason?: AdjustmentReason
+  dateRange?: DateRange
+}
+
+export interface AdjustmentSummary {
+  productId: string
+  totalIncrease: number
+  totalDecrease: number
+  netAdjustment: number
+}
+
+export interface IInventoryAdjustmentRepository {
+  /**
+   * ID로 조회
+   */
+  findById(id: string): Promise<InventoryAdjustment | null>
+
+  /**
+   * 조건에 맞는 재고 조정 조회
+   */
+  findAll(filter?: AdjustmentFilter): Promise<InventoryAdjustment[]>
+
+  /**
+   * 품목별 재고 조정 조회
+   */
+  findByProduct(productId: string): Promise<InventoryAdjustment[]>
+
+  /**
+   * 기간 내 재고 조정 조회
+   */
+  findByDateRange(dateRange: DateRange): Promise<InventoryAdjustment[]>
+
+  /**
+   * 품목별 조정 합계 조회
+   */
+  getAdjustmentSummary(productId: string): Promise<AdjustmentSummary>
+
+  /**
+   * 여러 품목의 조정 합계 조회
+   */
+  getAdjustmentSummaries(productIds: string[]): Promise<AdjustmentSummary[]>
+
+  /**
+   * 저장
+   */
+  save(adjustment: InventoryAdjustment): Promise<InventoryAdjustment>
+
+  /**
+   * 삭제
+   */
+  delete(id: string): Promise<void>
 }

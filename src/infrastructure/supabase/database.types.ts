@@ -15,6 +15,8 @@ export type TransactionType = 'IN' | 'OUT'
 export type PlanType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
 export type OrderStatus = 'DRAFT' | 'CONFIRMED' | 'SENT' | 'PARTIALLY_RECEIVED' | 'COMPLETED' | 'CANCELLED'
 export type OrderType = 'DOMESTIC' | 'VIETNAM'
+export type AdjustmentType = 'INCREASE' | 'DECREASE'
+export type AdjustmentReason = 'PHYSICAL_COUNT' | 'LOSS' | 'DAMAGE' | 'OTHER'
 
 export interface Database {
   public: {
@@ -107,6 +109,22 @@ export interface Database {
           is_active: boolean
           created_at: string
           updated_at: string
+          // Extended fields (거래처 관리 Excel)
+          note: string | null
+          partner_group: string | null
+          ceo_name: string | null
+          foundation_date: string | null
+          postal_code: string | null
+          business_type: string | null
+          industry_type: string | null
+          country_code: string | null
+          incoterms: string | null
+          phone2: string | null
+          website: string | null
+          partner_contact_phone: string | null
+          manager: string | null
+          effective_start_date: string | null
+          effective_end_date: string | null
         }
         Insert: {
           id?: string
@@ -122,6 +140,22 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          // Extended fields
+          note?: string | null
+          partner_group?: string | null
+          ceo_name?: string | null
+          foundation_date?: string | null
+          postal_code?: string | null
+          business_type?: string | null
+          industry_type?: string | null
+          country_code?: string | null
+          incoterms?: string | null
+          phone2?: string | null
+          website?: string | null
+          partner_contact_phone?: string | null
+          manager?: string | null
+          effective_start_date?: string | null
+          effective_end_date?: string | null
         }
         Update: {
           id?: string
@@ -137,6 +171,22 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          // Extended fields
+          note?: string | null
+          partner_group?: string | null
+          ceo_name?: string | null
+          foundation_date?: string | null
+          postal_code?: string | null
+          business_type?: string | null
+          industry_type?: string | null
+          country_code?: string | null
+          incoterms?: string | null
+          phone2?: string | null
+          website?: string | null
+          partner_contact_phone?: string | null
+          manager?: string | null
+          effective_start_date?: string | null
+          effective_end_date?: string | null
         }
       }
       exchange_rates: {
@@ -182,6 +232,16 @@ export interface Database {
           is_active: boolean
           created_at: string
           updated_at: string
+          // Extended fields (품목마스터 관리 Excel)
+          project_code: string | null
+          spec1: string | null
+          spec2: string | null
+          spec3: string | null
+          moq: number | null
+          product_type: string | null
+          unit: string | null
+          effective_start_date: string | null
+          effective_end_date: string | null
         }
         Insert: {
           id?: string
@@ -199,6 +259,16 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          // Extended fields
+          project_code?: string | null
+          spec1?: string | null
+          spec2?: string | null
+          spec3?: string | null
+          moq?: number | null
+          product_type?: string | null
+          unit?: string | null
+          effective_start_date?: string | null
+          effective_end_date?: string | null
         }
         Update: {
           id?: string
@@ -216,6 +286,16 @@ export interface Database {
           is_active?: boolean
           created_at?: string
           updated_at?: string
+          // Extended fields
+          project_code?: string | null
+          spec1?: string | null
+          spec2?: string | null
+          spec3?: string | null
+          moq?: number | null
+          product_type?: string | null
+          unit?: string | null
+          effective_start_date?: string | null
+          effective_end_date?: string | null
         }
       }
       inventory_transactions: {
@@ -234,6 +314,27 @@ export interface Database {
           item_type: string | null
           upload_batch_id: string | null
           created_at: string
+          // Extended fields (입고/출고 마감관리 Excel)
+          partner_code: string | null
+          vat_rate: number | null
+          krw_amount: number | null
+          tax_amount: number | null
+          warehouse_code: string | null
+          warehouse_name: string | null
+          closing_key: string | null
+          registered_at: string | null
+          registered_by: string | null
+          modified_at: string | null
+          modified_by: string | null
+          return_number: string | null
+          transaction_detail: string | null
+          lot_number: string | null
+          transaction_category: string | null
+          shipment_type: string | null
+          customer_product_code: string | null
+          contract_price: number | null
+          contract_currency: string | null
+          applied_price: number | null
         }
         Insert: {
           id?: string
@@ -250,6 +351,27 @@ export interface Database {
           item_type?: string | null
           upload_batch_id?: string | null
           created_at?: string
+          // Extended fields
+          partner_code?: string | null
+          vat_rate?: number | null
+          krw_amount?: number | null
+          tax_amount?: number | null
+          warehouse_code?: string | null
+          warehouse_name?: string | null
+          closing_key?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          modified_at?: string | null
+          modified_by?: string | null
+          return_number?: string | null
+          transaction_detail?: string | null
+          lot_number?: string | null
+          transaction_category?: string | null
+          shipment_type?: string | null
+          customer_product_code?: string | null
+          contract_price?: number | null
+          contract_currency?: string | null
+          applied_price?: number | null
         }
         Update: {
           id?: string
@@ -266,6 +388,27 @@ export interface Database {
           item_type?: string | null
           upload_batch_id?: string | null
           created_at?: string
+          // Extended fields
+          partner_code?: string | null
+          vat_rate?: number | null
+          krw_amount?: number | null
+          tax_amount?: number | null
+          warehouse_code?: string | null
+          warehouse_name?: string | null
+          closing_key?: string | null
+          registered_at?: string | null
+          registered_by?: string | null
+          modified_at?: string | null
+          modified_by?: string | null
+          return_number?: string | null
+          transaction_detail?: string | null
+          lot_number?: string | null
+          transaction_category?: string | null
+          shipment_type?: string | null
+          customer_product_code?: string | null
+          contract_price?: number | null
+          contract_currency?: string | null
+          applied_price?: number | null
         }
       }
       shipment_plans: {
@@ -438,6 +581,96 @@ export interface Database {
           remarks?: string | null
         }
       }
+      initial_inventory: {
+        Row: {
+          id: string
+          product_id: string
+          base_date: string
+          quantity: number
+          remarks: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          base_date: string
+          quantity: number
+          remarks?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          base_date?: string
+          quantity?: number
+          remarks?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+      }
+      inventory_adjustments: {
+        Row: {
+          id: string
+          adjustment_date: string
+          product_id: string
+          adjustment_type: AdjustmentType
+          quantity: number
+          reason: AdjustmentReason
+          remarks: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          adjustment_date: string
+          product_id: string
+          adjustment_type: AdjustmentType
+          quantity: number
+          reason: AdjustmentReason
+          remarks?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          adjustment_date?: string
+          product_id?: string
+          adjustment_type?: AdjustmentType
+          quantity?: number
+          reason?: AdjustmentReason
+          remarks?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+      }
+      system_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: string
+          description: string | null
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value: string
+          description?: string | null
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          description?: string | null
+          updated_by?: string | null
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -452,6 +685,8 @@ export interface Database {
       plan_type: PlanType
       order_status: OrderStatus
       order_type: OrderType
+      adjustment_type: AdjustmentType
+      adjustment_reason: AdjustmentReason
     }
   }
 }

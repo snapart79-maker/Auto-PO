@@ -34,6 +34,17 @@ export interface ShipmentPlanRow extends ParsedRow {
 }
 
 /**
+ * 초기 재고 행
+ */
+export interface InitialInventoryRow {
+  rowNumber: number
+  productCode: string
+  quantity: number
+  baseDate: Date
+  remarks?: string
+}
+
+/**
  * Excel 파서 옵션
  */
 export interface ExcelParserOptions {

@@ -1,5 +1,6 @@
 /**
  * Layout - 메인 레이아웃 컴포넌트
+ * PRD 2.2 메뉴 구조에 따른 접이식 그룹 메뉴
  */
 
 import { NavLink, Outlet } from 'react-router-dom'
@@ -10,17 +11,27 @@ import {
   Package,
   DollarSign,
   LayoutDashboard,
-  Upload,
+  Settings,
+  PackageSearch,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ClipboardList,
   Calculator,
   FileText,
-  ArrowDownToLine,
-  Truck,
   Globe,
+  Truck,
+  PlusCircle,
+  RefreshCcw,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { NavGroup, type NavItem } from './NavGroup'
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: '대시보드' },
+/**
+ * 메뉴 그룹 정의 (PRD 2.2)
+ */
+
+// 기준관리 그룹
+const masterDataItems: NavItem[] = [
   { to: '/company', icon: Building2, label: '회사정보' },
   { to: '/vehicle-models', icon: Car, label: '차종관리' },
   { to: '/partners', icon: Users, label: '거래처관리' },
@@ -28,18 +39,25 @@ const navItems = [
   { to: '/exchange-rates', icon: DollarSign, label: '환율관리' },
 ]
 
-const uploadItems = [
-  { to: '/upload/inventory', icon: ArrowDownToLine, label: '입출고 업로드' },
-  { to: '/upload/shipment', icon: Truck, label: '출고계획 업로드' },
+// 입고/출고 그룹
+const inventoryTransactionItems: NavItem[] = [
+  { to: '/inbound', icon: ArrowDownToLine, label: '입고 현황' },
+  { to: '/outbound', icon: ArrowUpFromLine, label: '출고 현황' },
 ]
 
-const mrpItems = [
-  { to: '/mrp', icon: Calculator, label: 'MRP 계산' },
-  { to: '/mrp/vietnam', icon: Globe, label: '베트남 발주' },
+// 재고 관리 그룹
+const inventoryManagementItems: NavItem[] = [
+  { to: '/inventory/status', icon: PackageSearch, label: '재고 현황' },
+  { to: '/inventory/initial', icon: PlusCircle, label: '초기 재고 등록' },
+  { to: '/inventory/adjustment', icon: RefreshCcw, label: '재고 조정' },
 ]
 
-const orderItems = [
-  { to: '/orders', icon: FileText, label: '발주관리' },
+// 발주 관리 그룹
+const orderManagementItems: NavItem[] = [
+  { to: '/shipment-plan', icon: Truck, label: '출고 계획 등록' },
+  { to: '/mrp', icon: Calculator, label: 'MRP 계산 / 발주 권고' },
+  { to: '/orders', icon: FileText, label: '발주서 관리' },
+  { to: '/mrp/vietnam', icon: Globe, label: '베트남 주간 발주' },
 ]
 
 export function Layout() {
@@ -54,114 +72,64 @@ export function Layout() {
       </a>
 
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-card" role="complementary" aria-label="사이드바">
+      <aside className="w-64 border-r bg-card flex flex-col" role="complementary" aria-label="사이드바">
         <div className="flex h-16 items-center border-b px-6">
           <h1 className="text-xl font-bold">Auto PO</h1>
         </div>
-        <nav className="p-4 space-y-1" role="navigation" aria-label="메인 네비게이션">
-          {/* 기본 메뉴 */}
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )
-              }
-            >
-              <item.icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
-            </NavLink>
-          ))}
 
-          {/* 업로드 섹션 */}
-          <div className="pt-4" role="group" aria-labelledby="upload-section-title">
-            <div
-              id="upload-section-title"
-              className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-            >
-              <Upload className="h-3 w-3" aria-hidden="true" />
-              데이터 업로드
-            </div>
-            {uploadItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ml-2',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
+        <nav className="flex-1 overflow-y-auto p-4 space-y-2" role="navigation" aria-label="메인 네비게이션">
+          {/* 대시보드 (단독) */}
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )
+            }
+          >
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+            대시보드
+          </NavLink>
 
-          {/* MRP 섹션 */}
-          <div className="pt-4" role="group" aria-labelledby="mrp-section-title">
-            <div
-              id="mrp-section-title"
-              className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-            >
-              <Calculator className="h-3 w-3" aria-hidden="true" />
-              MRP 관리
-            </div>
-            {mrpItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ml-2',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
+          {/* 기준관리 그룹 */}
+          <NavGroup
+            title="기준관리"
+            icon={Settings}
+            items={masterDataItems}
+            defaultOpen={true}
+            testId="nav-master-data"
+          />
 
-          {/* 발주 관리 */}
-          <div className="pt-4" role="group" aria-labelledby="order-section-title">
-            <div
-              id="order-section-title"
-              className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-            >
-              <FileText className="h-3 w-3" aria-hidden="true" />
-              발주 관리
-            </div>
-            {orderItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ml-2',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )
-                }
-              >
-                <item.icon className="h-4 w-4" aria-hidden="true" />
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
+          {/* 입고/출고 그룹 */}
+          <NavGroup
+            title="입고/출고"
+            icon={ClipboardList}
+            items={inventoryTransactionItems}
+            defaultOpen={false}
+            testId="nav-inventory-transaction"
+          />
+
+          {/* 재고 관리 그룹 */}
+          <NavGroup
+            title="재고 관리"
+            icon={PackageSearch}
+            items={inventoryManagementItems}
+            defaultOpen={false}
+            testId="nav-inventory-management"
+          />
+
+          {/* 발주 관리 그룹 */}
+          <NavGroup
+            title="발주 관리"
+            icon={FileText}
+            items={orderManagementItems}
+            defaultOpen={false}
+            testId="nav-order-management"
+          />
         </nav>
       </aside>
 

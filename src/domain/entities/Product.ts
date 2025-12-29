@@ -22,6 +22,16 @@ export interface ProductProps {
   isActive: boolean
   createdAt?: Date
   updatedAt?: Date
+  // 확장 필드
+  projectCode?: string
+  spec1?: string
+  spec2?: string
+  spec3?: string
+  moq?: number
+  productType?: string
+  unit?: string
+  effectiveStartDate?: Date
+  effectiveEndDate?: Date
 }
 
 export interface SplitQuantity {
@@ -82,6 +92,43 @@ export class Product {
 
   get isActive(): boolean {
     return this.props.isActive
+  }
+
+  // 확장 필드 getter
+  get projectCode(): string | undefined {
+    return this.props.projectCode
+  }
+
+  get spec1(): string | undefined {
+    return this.props.spec1
+  }
+
+  get spec2(): string | undefined {
+    return this.props.spec2
+  }
+
+  get spec3(): string | undefined {
+    return this.props.spec3
+  }
+
+  get moq(): number | undefined {
+    return this.props.moq
+  }
+
+  get productType(): string | undefined {
+    return this.props.productType
+  }
+
+  get unit(): string | undefined {
+    return this.props.unit
+  }
+
+  get effectiveStartDate(): Date | undefined {
+    return this.props.effectiveStartDate
+  }
+
+  get effectiveEndDate(): Date | undefined {
+    return this.props.effectiveEndDate
   }
 
   /**

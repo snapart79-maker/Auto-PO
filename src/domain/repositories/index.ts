@@ -9,7 +9,14 @@ export type {
   InventoryFilter,
   StockSummary,
   DailyAverage,
+  IInitialInventoryRepository,
+  InitialInventoryFilter,
+  IInventoryAdjustmentRepository,
+  AdjustmentFilter,
+  AdjustmentSummary,
 } from './IInventoryRepository'
+
+export type { ISystemSettingRepository } from './ISystemSettingRepository'
 export type {
   IOrderRepository,
   OrderFilter,
