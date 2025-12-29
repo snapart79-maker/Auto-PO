@@ -1,6 +1,7 @@
 /**
  * ERPTable - ERP/MES 스타일 테이블 컴포넌트
  * 진한 파란색 헤더, 테두리 있는 셀, Record 페이지네이션
+ * 페이지 사이즈 선택, 컬럼 필터링 지원
  */
 
 import {
@@ -13,8 +14,9 @@ import {
   type ColumnDef,
   type SortingState,
   type RowSelectionState,
+  type ColumnFiltersState,
 } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,8 +24,21 @@ import {
   ChevronsRight,
   ArrowUp,
   ArrowDown,
+  X,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { Input } from './ui/input'
+import { Button } from './ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select'
+
+// 기본 페이지 사이즈 옵션
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
 interface ERPTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -35,21 +50,87 @@ interface ERPTableProps<TData, TValue> {
   title?: string
   showSummary?: boolean
   summaryRow?: Record<string, React.ReactNode>
+  // 페이지 사이즈 선택
+  enablePageSizeSelect?: boolean
+  pageSizeOptions?: number[]
+  onPageSizeChange?: (pageSize: number) => void
+  // 컬럼 필터링
+  enableColumnFilters?: boolean
+  columnFilters?: ColumnFiltersState
+  onColumnFiltersChange?: (filters: ColumnFiltersState) => void
+  // 글로벌 필터
+  globalFilter?: string
+  onGlobalFilterChange?: (filter: string) => void
 }
 
 export function ERPTable<TData, TValue>({
   columns,
   data,
-  pageSize = 20,
+  pageSize: initialPageSize = 20,
   onRowClick,
   enableSelection = false,
   onSelectionChange,
   title,
   showSummary = true,
   summaryRow,
+  enablePageSizeSelect = false,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+  onPageSizeChange,
+  enableColumnFilters = false,
+  columnFilters: controlledColumnFilters,
+  onColumnFiltersChange,
+  globalFilter: controlledGlobalFilter,
+  onGlobalFilterChange,
 }: ERPTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [internalPageSize, setInternalPageSize] = useState(initialPageSize)
+  const [internalColumnFilters, setInternalColumnFilters] = useState<ColumnFiltersState>([])
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState('')
+
+  // Controlled vs Uncontrolled 상태 관리
+  const pageSize = internalPageSize
+  const columnFilters = controlledColumnFilters ?? internalColumnFilters
+  const globalFilter = controlledGlobalFilter ?? internalGlobalFilter
+
+  // 페이지 사이즈 변경 핸들러
+  const handlePageSizeChange = useCallback(
+    (size: number) => {
+      setInternalPageSize(size)
+      onPageSizeChange?.(size)
+    },
+    [onPageSizeChange]
+  )
+
+  // 컬럼 필터 변경 핸들러
+  const handleColumnFiltersChange = useCallback(
+    (updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
+      const newFilters = typeof updater === 'function' ? updater(columnFilters) : updater
+      setInternalColumnFilters(newFilters)
+      onColumnFiltersChange?.(newFilters)
+    },
+    [columnFilters, onColumnFiltersChange]
+  )
+
+  // 글로벌 필터 변경 핸들러
+  const handleGlobalFilterChange = useCallback(
+    (value: string) => {
+      setInternalGlobalFilter(value)
+      onGlobalFilterChange?.(value)
+    },
+    [onGlobalFilterChange]
+  )
+
+  // 필터 초기화
+  const handleResetFilters = useCallback(() => {
+    setInternalColumnFilters([])
+    setInternalGlobalFilter('')
+    onColumnFiltersChange?.([])
+    onGlobalFilterChange?.('')
+  }, [onColumnFiltersChange, onGlobalFilterChange])
+
+  // 활성 필터 확인
+  const hasActiveFilters = columnFilters.length > 0 || globalFilter !== ''
 
   // 선택 컬럼 추가
   const allColumns: ColumnDef<TData, TValue>[] = enableSelection
@@ -87,6 +168,8 @@ export function ERPTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
+    onColumnFiltersChange: handleColumnFiltersChange,
+    onGlobalFilterChange: handleGlobalFilterChange,
     onRowSelectionChange: (updater) => {
       const newSelection = typeof updater === 'function' ? updater(rowSelection) : updater
       setRowSelection(newSelection)
@@ -101,14 +184,21 @@ export function ERPTable<TData, TValue>({
     state: {
       sorting,
       rowSelection,
-    },
-    initialState: {
+      columnFilters,
+      globalFilter,
       pagination: {
+        pageIndex: 0,
         pageSize,
       },
     },
     enableRowSelection: enableSelection,
+    enableColumnFilters,
   })
+
+  // 페이지 사이즈 변경 시 테이블 업데이트
+  useEffect(() => {
+    table.setPageSize(pageSize)
+  }, [pageSize, table])
 
   const { pageIndex } = table.getState().pagination
   const totalRows = table.getFilteredRowModel().rows.length
@@ -158,6 +248,36 @@ export function ERPTable<TData, TValue>({
                 })}
               </tr>
             ))}
+            {/* 필터 행 */}
+            {enableColumnFilters && (
+              <tr>
+                {table.getHeaderGroups()[0]?.headers.map((header) => {
+                  const column = header.column
+                  const canFilter = column.getCanFilter()
+                  const columnId = column.id
+                  const headerText = typeof column.columnDef.header === 'string'
+                    ? column.columnDef.header
+                    : columnId
+
+                  return (
+                    <th
+                      key={header.id}
+                      className="bg-[#f0f4f8] border border-[#ddd] px-1 py-1"
+                    >
+                      {canFilter && columnId !== 'select' ? (
+                        <Input
+                          type="text"
+                          placeholder={`${headerText} 검색...`}
+                          value={(column.getFilterValue() ?? '') as string}
+                          onChange={(e) => column.setFilterValue(e.target.value)}
+                          className="h-6 text-xs w-full"
+                        />
+                      ) : null}
+                    </th>
+                  )
+                })}
+              </tr>
+            )}
           </thead>
 
           {/* 바디 */}
@@ -215,39 +335,77 @@ export function ERPTable<TData, TValue>({
       </div>
 
       {/* 페이지네이션 바 */}
-      <div className="h-7 bg-[#e8e8e8] border border-t-0 border-[#999] flex items-center justify-between px-2">
-        <div className="flex items-center gap-1">
-          <button
-            className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </button>
-          <button
-            className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="text-xs px-2">
-            Record {startRow} of {totalRows}
-          </span>
-          <button
-            className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <button
-            className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </button>
+      <div className="h-8 bg-[#e8e8e8] border border-t-0 border-[#999] flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          {/* 페이지 사이즈 선택 */}
+          {enablePageSizeSelect && (
+            <div className="flex items-center gap-1">
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => handlePageSizeChange(Number(value))}
+              >
+                <SelectTrigger className="h-6 w-16 text-xs" aria-label="페이지 사이즈">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-gray-600">개씩</span>
+            </div>
+          )}
+
+          {/* 필터 초기화 버튼 */}
+          {enableColumnFilters && hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="h-6 px-2 text-xs"
+            >
+              <X className="h-3 w-3 mr-1" />
+              필터 초기화
+            </Button>
+          )}
+
+          {/* 페이지네이션 컨트롤 */}
+          <div className="flex items-center gap-1">
+            <button
+              className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+            <button
+              className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-xs px-2">
+              Record {startRow} of {totalRows}
+            </span>
+            <button
+              className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <button
+              className="p-0.5 hover:bg-[#d0d0d0] rounded disabled:opacity-40"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <div className="text-xs text-gray-600">
           {table.getState().pagination.pageIndex + 1} / {Math.max(1, table.getPageCount())} 페이지

@@ -1,5 +1,6 @@
 /**
  * ExchangeRatesPage - 환율 관리 페이지 (ERP 스타일)
+ * Phase 3: React Hook Form + Zod + ConfirmDialog 적용
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -21,21 +22,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 import { useToast } from '../components/ui/toast'
 import { SupabaseExchangeRateRepository } from '@infrastructure/repositories'
 import { ExchangeRate } from '@domain/entities/ExchangeRate'
 import type { Currency } from '@domain/valueObjects/Money'
 import { Plus, Trash2, Upload, RefreshCw, Search, FileDown } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { ExchangeRateForm } from '../components/forms/ExchangeRateForm'
+import { useConfirmDialog } from '../components/common/ConfirmDialog'
+import type { ExchangeRateFormData } from '@infrastructure/schemas'
 
 const exchangeRateRepository = new SupabaseExchangeRateRepository()
 
@@ -54,17 +49,14 @@ function formatNumber(value: number): string {
 export function ExchangeRatesPage() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog()
 
   const [data, setData] = useState<ExchangeRateRow[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [filterCurrency, setFilterCurrency] = useState('ALL')
   const [filterDate, setFilterDate] = useState('')
-  const [formData, setFormData] = useState({
-    currencyCode: 'USD',
-    rate: 1300,
-    effectiveDate: format(new Date(), 'yyyy-MM-dd'),
-  })
+  const [formLoading, setFormLoading] = useState(false)
 
   // 업로드 다이얼로그 상태
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
@@ -148,33 +140,38 @@ export function ExchangeRatesPage() {
   }
 
   const handleAdd = () => {
-    setFormData({
-      currencyCode: 'USD',
-      rate: 1300,
-      effectiveDate: format(new Date(), 'yyyy-MM-dd'),
-    })
     setDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('이 환율을 삭제하시겠습니까?')) return
+    const confirmed = await confirm({
+      title: '환율 삭제',
+      description: '이 환율을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
+
     try {
       await exchangeRateRepository.delete(id)
       await loadData()
       toast({ title: '삭제 완료' })
     } catch (error) {
       console.error('삭제 실패:', error)
-      toast({ title: '삭제 실패', variant: 'destructive' })
+      toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
     }
   }
 
-  const handleSubmit = async () => {
+  const handleFormSubmit = async (formData: ExchangeRateFormData) => {
+    setFormLoading(true)
     try {
       const rate = ExchangeRate.create({
         id: crypto.randomUUID(),
-        currencyCode: formData.currencyCode as Currency,
+        currencyCode: formData.currency_code as Currency,
         rate: formData.rate,
-        effectiveDate: new Date(formData.effectiveDate),
+        effectiveDate: new Date(formData.effective_date),
       })
 
       await exchangeRateRepository.save(rate)
@@ -183,8 +180,14 @@ export function ExchangeRatesPage() {
       toast({ title: '등록 완료' })
     } catch (error) {
       console.error('저장 실패:', error)
-      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '', variant: 'destructive' })
+      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
+    } finally {
+      setFormLoading(false)
     }
+  }
+
+  const handleFormCancel = () => {
+    setDialogOpen(false)
   }
 
   // 양식 다운로드
@@ -381,35 +384,16 @@ export function ExchangeRatesPage() {
           <DialogHeader>
             <DialogTitle>환율 등록</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>통화</Label>
-              <Select value={formData.currencyCode} onValueChange={(v) => setFormData({ ...formData, currencyCode: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD (미국 달러)</SelectItem>
-                  <SelectItem value="EUR">EUR (유로)</SelectItem>
-                  <SelectItem value="JPY">JPY (일본 엔)</SelectItem>
-                  <SelectItem value="CNY">CNY (중국 위안)</SelectItem>
-                  <SelectItem value="VND">VND (베트남 동)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>환율 (1단위당 KRW)</Label>
-              <Input type="number" min={0} step={0.01} value={formData.rate} onChange={(e) => setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })} />
-            </div>
-            <div className="space-y-2">
-              <Label>적용일</Label>
-              <Input type="date" value={formData.effectiveDate} onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter>
-            <ERPButton onClick={() => setDialogOpen(false)}>취소</ERPButton>
-            <ERPButton variant="primary" onClick={handleSubmit}>저장</ERPButton>
-          </DialogFooter>
+          <ExchangeRateForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            isLoading={formLoading}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialogComponent />
 
       {/* 일괄 업로드 확인 다이얼로그 */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

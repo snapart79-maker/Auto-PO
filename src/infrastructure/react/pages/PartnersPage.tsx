@@ -1,5 +1,6 @@
 /**
  * PartnersPage - 거래처 마스터 관리 페이지 (ERP 스타일)
+ * Phase 3: React Hook Form + Zod + ConfirmDialog 적용
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -20,22 +21,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Switch } from '../components/ui/switch'
 import { useToast } from '../components/ui/toast'
 import { SupabasePartnerRepository } from '@infrastructure/repositories'
 import { Partner } from '@domain/entities/Partner'
 import { PartnerType } from '@domain/valueObjects/PartnerType'
 import { Plus, Pencil, Trash2, Upload, RefreshCw, Search, FileDown } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { PartnerForm } from '../components/forms/PartnerForm'
+import { useConfirmDialog } from '../components/common/ConfirmDialog'
+import type { PartnerFormData } from '@infrastructure/schemas'
 
 const partnerRepository = new SupabasePartnerRepository()
 
@@ -143,6 +137,7 @@ function parseExcelDate(value: unknown): string | null {
 export function PartnersPage() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog()
 
   const [data, setData] = useState<PartnerRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -151,33 +146,7 @@ export function PartnersPage() {
   const [filterCode, setFilterCode] = useState('')
   const [filterName, setFilterName] = useState('')
   const [editingItem, setEditingItem] = useState<PartnerRow | null>(null)
-  const [formData, setFormData] = useState({
-    partnerCode: '',
-    partnerName: '',
-    partnerType: 'SUPPLIER',
-    note: '',
-    partnerGroup: '',
-    businessNumber: '',
-    ceoName: '',
-    foundationDate: '',
-    postalCode: '',
-    address: '',
-    businessType: '',
-    industryType: '',
-    countryCode: '대한민국',
-    incoterms: '도착도',
-    currency: 'KRW',
-    contactPhone: '',
-    phone2: '',
-    contactEmail: '',
-    website: '',
-    contactPerson: '',
-    partnerContactPhone: '',
-    manager: '',
-    effectiveStartDate: '',
-    effectiveEndDate: '',
-    isActive: true,
-  })
+  const [formLoading, setFormLoading] = useState(false)
 
   // 업로드 다이얼로그 상태
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
@@ -297,110 +266,66 @@ export function PartnersPage() {
 
   const handleAdd = () => {
     setEditingItem(null)
-    setFormData({
-      partnerCode: '',
-      partnerName: '',
-      partnerType: 'SUPPLIER',
-      note: '',
-      partnerGroup: '',
-      businessNumber: '',
-      ceoName: '',
-      foundationDate: '',
-      postalCode: '',
-      address: '',
-      businessType: '',
-      industryType: '',
-      countryCode: '대한민국',
-      incoterms: '도착도',
-      currency: 'KRW',
-      contactPhone: '',
-      phone2: '',
-      contactEmail: '',
-      website: '',
-      contactPerson: '',
-      partnerContactPhone: '',
-      manager: '',
-      effectiveStartDate: '',
-      effectiveEndDate: '',
-      isActive: true,
-    })
     setDialogOpen(true)
   }
 
   const handleEdit = (item: PartnerRow) => {
     setEditingItem(item)
-    setFormData({
-      partnerCode: item.partnerCode,
-      partnerName: item.partnerName,
-      partnerType: item.partnerType,
-      note: item.note ?? '',
-      partnerGroup: item.partnerGroup ?? '',
-      businessNumber: item.businessNumber ?? '',
-      ceoName: item.ceoName ?? '',
-      foundationDate: item.foundationDate ?? '',
-      postalCode: item.postalCode ?? '',
-      address: item.address ?? '',
-      businessType: item.businessType ?? '',
-      industryType: item.industryType ?? '',
-      countryCode: item.countryCode || '대한민국',
-      incoterms: item.incoterms || '도착도',
-      currency: item.currency,
-      contactPhone: item.contactPhone ?? '',
-      phone2: item.phone2 ?? '',
-      contactEmail: item.contactEmail ?? '',
-      website: item.website ?? '',
-      contactPerson: item.contactPerson ?? '',
-      partnerContactPhone: item.partnerContactPhone ?? '',
-      manager: item.manager ?? '',
-      effectiveStartDate: item.effectiveStartDate ?? '',
-      effectiveEndDate: item.effectiveEndDate ?? '',
-      isActive: item.isActive,
-    })
     setDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('이 거래처를 삭제하시겠습니까?')) return
+    const confirmed = await confirm({
+      title: '거래처 삭제',
+      description: '이 거래처를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
+
     try {
       await partnerRepository.delete(id)
       await loadData()
       toast({ title: '삭제 완료' })
     } catch (error) {
       console.error('삭제 실패:', error)
-      toast({ title: '삭제 실패', variant: 'destructive' })
+      toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
     }
   }
 
-  const handleSubmit = async () => {
+  const handleFormSubmit = async (formData: PartnerFormData) => {
+    setFormLoading(true)
     try {
       const partner = Partner.create({
         id: editingItem?.id ?? crypto.randomUUID(),
-        partnerCode: formData.partnerCode,
-        partnerName: formData.partnerName,
-        partnerType: PartnerType.fromString(formData.partnerType),
-        businessNumber: formData.businessNumber || undefined,
+        partnerCode: formData.partner_code,
+        partnerName: formData.partner_name,
+        partnerType: PartnerType.fromString(formData.partner_type),
+        businessNumber: formData.business_number || undefined,
         address: formData.address || undefined,
-        contactPerson: formData.contactPerson || undefined,
-        contactPhone: formData.contactPhone || undefined,
-        contactEmail: formData.contactEmail || undefined,
+        contactPerson: formData.contact_person || undefined,
+        contactPhone: formData.contact_phone || undefined,
+        contactEmail: formData.contact_email || undefined,
         currency: formData.currency,
-        isActive: formData.isActive,
+        isActive: formData.is_active,
         // 확장 필드
         note: formData.note || undefined,
-        partnerGroup: formData.partnerGroup || undefined,
-        ceoName: formData.ceoName || undefined,
-        foundationDate: formData.foundationDate ? new Date(formData.foundationDate) : undefined,
-        postalCode: formData.postalCode || undefined,
-        businessType: formData.businessType || undefined,
-        industryType: formData.industryType || undefined,
-        countryCode: formData.countryCode || undefined,
+        partnerGroup: formData.partner_group || undefined,
+        ceoName: formData.ceo_name || undefined,
+        foundationDate: formData.foundation_date ? new Date(formData.foundation_date) : undefined,
+        postalCode: formData.postal_code || undefined,
+        businessType: formData.business_type || undefined,
+        industryType: formData.industry_type || undefined,
+        countryCode: formData.country_code || undefined,
         incoterms: formData.incoterms || undefined,
         phone2: formData.phone2 || undefined,
         website: formData.website || undefined,
-        partnerContactPhone: formData.partnerContactPhone || undefined,
+        partnerContactPhone: formData.partner_contact_phone || undefined,
         manager: formData.manager || undefined,
-        effectiveStartDate: formData.effectiveStartDate ? new Date(formData.effectiveStartDate) : undefined,
-        effectiveEndDate: formData.effectiveEndDate ? new Date(formData.effectiveEndDate) : undefined,
+        effectiveStartDate: formData.effective_start_date ? new Date(formData.effective_start_date) : undefined,
+        effectiveEndDate: formData.effective_end_date ? new Date(formData.effective_end_date) : undefined,
       })
 
       await partnerRepository.save(partner)
@@ -409,8 +334,14 @@ export function PartnersPage() {
       toast({ title: editingItem ? '수정 완료' : '등록 완료' })
     } catch (error) {
       console.error('저장 실패:', error)
-      toast({ title: '저장 실패', variant: 'destructive' })
+      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
+    } finally {
+      setFormLoading(false)
     }
+  }
+
+  const handleFormCancel = () => {
+    setDialogOpen(false)
   }
 
   // 양식 다운로드
@@ -660,131 +591,41 @@ export function PartnersPage() {
           <DialogHeader>
             <DialogTitle>{editingItem ? '거래처 수정' : '거래처 추가'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-4 gap-4 py-4">
-            {/* 기본 정보 */}
-            <div className="space-y-2">
-              <Label>거래처코드 *</Label>
-              <Input value={formData.partnerCode} onChange={(e) => setFormData({ ...formData, partnerCode: e.target.value })} disabled={!!editingItem} />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>거래처명 *</Label>
-              <Input value={formData.partnerName} onChange={(e) => setFormData({ ...formData, partnerName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>거래처그룹</Label>
-              <Select value={formData.partnerType} onValueChange={(v) => setFormData({ ...formData, partnerType: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SUPPLIER">협력사</SelectItem>
-                  <SelectItem value="CUSTOMER">고객사</SelectItem>
-                  <SelectItem value="VIETNAM">베트남</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 col-span-3">
-              <Label>비고</Label>
-              <Input value={formData.note} onChange={(e) => setFormData({ ...formData, note: e.target.value })} />
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <Switch checked={formData.isActive} onCheckedChange={(c) => setFormData({ ...formData, isActive: c })} />
-              <Label>사용여부</Label>
-            </div>
-
-            {/* 사업자 정보 */}
-            <div className="space-y-2">
-              <Label>사업자등록번호</Label>
-              <Input value={formData.businessNumber} onChange={(e) => setFormData({ ...formData, businessNumber: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>대표자명</Label>
-              <Input value={formData.ceoName} onChange={(e) => setFormData({ ...formData, ceoName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>창립기념일</Label>
-              <Input type="date" value={formData.foundationDate} onChange={(e) => setFormData({ ...formData, foundationDate: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>우편번호</Label>
-              <Input value={formData.postalCode} onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })} />
-            </div>
-            <div className="space-y-2 col-span-4">
-              <Label>주소</Label>
-              <Input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>업태</Label>
-              <Input value={formData.businessType} onChange={(e) => setFormData({ ...formData, businessType: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>업종</Label>
-              <Input value={formData.industryType} onChange={(e) => setFormData({ ...formData, industryType: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>국가코드</Label>
-              <Input value={formData.countryCode} onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })} placeholder="대한민국" />
-            </div>
-            <div className="space-y-2">
-              <Label>인도조건</Label>
-              <Input value={formData.incoterms} onChange={(e) => setFormData({ ...formData, incoterms: e.target.value })} placeholder="도착도" />
-            </div>
-
-            {/* 연락처 정보 */}
-            <div className="space-y-2">
-              <Label>화폐단위</Label>
-              <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="KRW">KRW</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>전화번호1</Label>
-              <Input value={formData.contactPhone} onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>전화번호2</Label>
-              <Input value={formData.phone2} onChange={(e) => setFormData({ ...formData, phone2: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>대표이메일</Label>
-              <Input type="email" value={formData.contactEmail} onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })} />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label>홈페이지 주소</Label>
-              <Input value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} placeholder="https://" />
-            </div>
-            <div className="space-y-2">
-              <Label>협력사담당자명</Label>
-              <Input value={formData.contactPerson} onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>협력사담당자 연락처</Label>
-              <Input value={formData.partnerContactPhone} onChange={(e) => setFormData({ ...formData, partnerContactPhone: e.target.value })} />
-            </div>
-
-            {/* 관리 정보 */}
-            <div className="space-y-2">
-              <Label>담당사원</Label>
-              <Input value={formData.manager} onChange={(e) => setFormData({ ...formData, manager: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>적용시작일</Label>
-              <Input type="date" value={formData.effectiveStartDate} onChange={(e) => setFormData({ ...formData, effectiveStartDate: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>적용완료일</Label>
-              <Input type="date" value={formData.effectiveEndDate} onChange={(e) => setFormData({ ...formData, effectiveEndDate: e.target.value })} />
-            </div>
-            <div />
-          </div>
-          <DialogFooter>
-            <ERPButton onClick={() => setDialogOpen(false)}>취소</ERPButton>
-            <ERPButton variant="primary" onClick={handleSubmit}>저장</ERPButton>
-          </DialogFooter>
+          <PartnerForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            defaultValues={editingItem ? {
+              partner_code: editingItem.partnerCode,
+              partner_name: editingItem.partnerName,
+              partner_type: editingItem.partnerType as 'SUPPLIER' | 'CUSTOMER' | 'VIETNAM',
+              business_number: editingItem.businessNumber || undefined,
+              address: editingItem.address || undefined,
+              contact_person: editingItem.contactPerson || undefined,
+              contact_phone: editingItem.contactPhone || undefined,
+              contact_email: editingItem.contactEmail || undefined,
+              currency: editingItem.currency as 'KRW' | 'USD' | 'EUR' | 'VND',
+              is_active: editingItem.isActive,
+              note: editingItem.note || undefined,
+              partner_group: editingItem.partnerGroup || undefined,
+              ceo_name: editingItem.ceoName || undefined,
+              postal_code: editingItem.postalCode || undefined,
+              business_type: editingItem.businessType || undefined,
+              industry_type: editingItem.industryType || undefined,
+              country_code: editingItem.countryCode || undefined,
+              incoterms: editingItem.incoterms || undefined,
+              phone2: editingItem.phone2 || undefined,
+              website: editingItem.website || undefined,
+              partner_contact_phone: editingItem.partnerContactPhone || undefined,
+              manager: editingItem.manager || undefined,
+            } : undefined}
+            isEdit={!!editingItem}
+            isLoading={formLoading}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialogComponent />
 
       {/* 일괄 업로드 확인 다이얼로그 */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

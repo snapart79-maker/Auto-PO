@@ -26,7 +26,14 @@
       "Bash(grep:*)",
       "Bash(xargs:*)",
       "Bash(npx playwright test:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(mkdir:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm run test:run:*)",
+      "Bash(pnpm exec playwright test:*)",
+      "Bash(lsof:*)",
+      "Bash(timeout 120 pnpm exec playwright test:*)",
+      "Bash(timeout 180 pnpm exec playwright test:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

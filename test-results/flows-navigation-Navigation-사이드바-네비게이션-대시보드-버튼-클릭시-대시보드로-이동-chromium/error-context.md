@@ -1,0 +1,152 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e10]: Auto PO - 자동발주시스템
+    - generic [ref=e11]: 경림테크(주)
+  - navigation [ref=e12]:
+    - button "대시보드" [ref=e13] [cursor=pointer]:
+      - img [ref=e14]
+      - text: 대시보드
+    - button "기준관리" [ref=e19] [cursor=pointer]:
+      - img [ref=e20]
+      - text: 기준관리
+    - button "입고/출고" [ref=e23] [cursor=pointer]:
+      - img [ref=e24]
+      - text: 입고/출고
+    - button "재고 관리" [ref=e26] [cursor=pointer]:
+      - img [ref=e27]
+      - text: 재고 관리
+    - button "발주 관리" [ref=e33] [cursor=pointer]:
+      - img [ref=e34]
+      - text: 발주 관리
+    - generic [ref=e37]:
+      - button "조회" [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+        - text: 조회
+      - button "설정" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - text: 설정
+      - button "닫기" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - text: 닫기
+  - generic [ref=e50]:
+    - complementary [ref=e51]:
+      - generic [ref=e53]: 기준관리
+      - navigation [ref=e54]:
+        - link "회사정보" [ref=e55] [cursor=pointer]:
+          - /url: /company
+          - img [ref=e56]
+          - text: 회사정보
+        - link "차종관리" [ref=e60] [cursor=pointer]:
+          - /url: /vehicle-models
+          - img [ref=e61]
+          - text: 차종관리
+        - link "거래처관리" [ref=e65] [cursor=pointer]:
+          - /url: /partners
+          - img [ref=e66]
+          - text: 거래처관리
+        - link "제품관리" [ref=e71] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e72]
+          - text: 제품관리
+        - link "환율관리" [ref=e76] [cursor=pointer]:
+          - /url: /exchange-rates
+          - img [ref=e77]
+          - text: 환율관리
+    - generic [ref=e79]:
+      - generic [ref=e81]: ▶ 제품관리
+      - main [ref=e82]:
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - group "조회조건" [ref=e85]:
+              - generic [ref=e86]: 조회조건
+              - generic [ref=e87]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]: 품번
+                  - textbox "품번" [ref=e90]
+                - generic [ref=e91]:
+                  - generic [ref=e92]: 품명
+                  - textbox "품명" [ref=e93]
+                - generic [ref=e94]:
+                  - generic [ref=e95]: 공급처
+                  - combobox [ref=e96]:
+                    - option "전체 (0)" [selected]
+                    - option "국내 (0)"
+                    - option "베트남 (0)"
+                    - option "이원화 (0)"
+                - generic [ref=e97]:
+                  - button "조회" [ref=e98] [cursor=pointer]:
+                    - img [ref=e99]
+                    - text: 조회
+                  - button "초기화" [ref=e102] [cursor=pointer]
+            - group "기능" [ref=e103]:
+              - generic [ref=e104]: 기능
+              - generic [ref=e105]:
+                - button "개별등록" [ref=e106] [cursor=pointer]:
+                  - img [ref=e107]
+                  - text: 개별등록
+                - button "일괄등록" [ref=e108] [cursor=pointer]:
+                  - img [ref=e109]
+                  - text: 일괄등록
+                - button "양식다운로드" [ref=e112] [cursor=pointer]:
+                  - img [ref=e113]
+                  - text: 양식다운로드
+                - button "새로고침" [ref=e117] [cursor=pointer]:
+                  - img [ref=e118]
+                  - text: 새로고침
+          - generic [ref=e124]:
+            - generic [ref=e126]: 제품 목록
+            - table [ref=e128]:
+              - rowgroup [ref=e129]:
+                - row "프로젝트코드 품번 품명 사양1 사양2 사양3 MOQ 품목유형 단위 적용시작일 적용완료일 수정일시 작업" [ref=e130]:
+                  - columnheader [ref=e131]:
+                    - checkbox [ref=e133]
+                  - columnheader "프로젝트코드" [ref=e134] [cursor=pointer]:
+                    - generic [ref=e135]: 프로젝트코드
+                  - columnheader "품번" [ref=e136] [cursor=pointer]:
+                    - generic [ref=e137]: 품번
+                  - columnheader "품명" [ref=e138] [cursor=pointer]:
+                    - generic [ref=e139]: 품명
+                  - columnheader "사양1" [ref=e140] [cursor=pointer]:
+                    - generic [ref=e141]: 사양1
+                  - columnheader "사양2" [ref=e142] [cursor=pointer]:
+                    - generic [ref=e143]: 사양2
+                  - columnheader "사양3" [ref=e144] [cursor=pointer]:
+                    - generic [ref=e145]: 사양3
+                  - columnheader "MOQ" [ref=e146] [cursor=pointer]:
+                    - generic [ref=e147]: MOQ
+                  - columnheader "품목유형" [ref=e148] [cursor=pointer]:
+                    - generic [ref=e149]: 품목유형
+                  - columnheader "단위" [ref=e150] [cursor=pointer]:
+                    - generic [ref=e151]: 단위
+                  - columnheader "적용시작일" [ref=e152] [cursor=pointer]:
+                    - generic [ref=e153]: 적용시작일
+                  - columnheader "적용완료일" [ref=e154] [cursor=pointer]:
+                    - generic [ref=e155]: 적용완료일
+                  - columnheader "수정일시" [ref=e156] [cursor=pointer]:
+                    - generic [ref=e157]: 수정일시
+                  - columnheader "작업" [ref=e158]:
+                    - generic [ref=e159]: 작업
+              - rowgroup [ref=e160]:
+                - row "데이터가 없습니다." [ref=e161]:
+                  - cell "데이터가 없습니다." [ref=e162]
+            - generic [ref=e163]:
+              - generic [ref=e165]:
+                - button [disabled] [ref=e166]:
+                  - img [ref=e167]
+                - button [disabled] [ref=e170]:
+                  - img [ref=e171]
+                - generic [ref=e173]: Record 0 of 0
+                - button [disabled] [ref=e174]:
+                  - img [ref=e175]
+                - button [disabled] [ref=e177]:
+                  - img [ref=e178]
+              - generic [ref=e181]: 1 / 1 페이지
+  - contentinfo [ref=e182]:
+    - generic [ref=e183]: "[Auto-PO] v1.0.0"
+    - generic [ref=e184]: 2025. 12. 29. (월) 오후 10:04
+```

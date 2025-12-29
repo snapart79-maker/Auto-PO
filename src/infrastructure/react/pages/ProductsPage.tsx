@@ -1,5 +1,6 @@
 /**
  * ProductsPage - 제품 마스터 관리 페이지 (ERP 스타일)
+ * Phase 3: React Hook Form + Zod + ConfirmDialog 적용
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -20,16 +21,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Switch } from '../components/ui/switch'
 import { useToast } from '../components/ui/toast'
 import {
   SupabaseProductRepository,
@@ -41,6 +32,9 @@ import { SupplierType } from '@domain/valueObjects/SupplierType'
 import { Money } from '@domain/valueObjects/Money'
 import { Plus, Pencil, Trash2, Upload, RefreshCw, Search, FileDown } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { ProductForm } from '../components/forms/ProductForm'
+import { useConfirmDialog } from '../components/common/ConfirmDialog'
+import type { ProductFormData } from '@infrastructure/schemas'
 
 const productRepository = new SupabaseProductRepository()
 const partnerRepository = new SupabasePartnerRepository()
@@ -174,6 +168,7 @@ function parseExcelDate(value: unknown): string | null {
 export function ProductsPage() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog()
 
   const [data, setData] = useState<ProductRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -184,30 +179,7 @@ export function ProductsPage() {
   const [editingItem, setEditingItem] = useState<ProductRow | null>(null)
   const [vehicleModels, setVehicleModels] = useState<SelectOption[]>([])
   const [partners, setPartners] = useState<SelectOption[]>([])
-  const [formData, setFormData] = useState({
-    projectCode: '',
-    productCode: '',
-    productName: '',
-    spec1: '',
-    spec2: '',
-    spec3: '',
-    moq: 1,
-    productType: '완제품',
-    unit: 'EA',
-    effectiveStartDate: '',
-    effectiveEndDate: '',
-    // 기존 필드 (호환성 유지)
-    vehicleModelId: '',
-    primarySupplier: 'DOMESTIC',
-    mainPartnerId: '',
-    subPartnerId: '',
-    domesticRatio: 100,
-    domesticLeadTime: 3,
-    overseasLeadTime: 14,
-    unitPrice: 0,
-    currency: 'KRW',
-    isActive: true,
-  })
+  const [formLoading, setFormLoading] = useState(false)
 
   // 업로드 다이얼로그 상태
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
@@ -344,89 +316,63 @@ export function ProductsPage() {
 
   const handleAdd = () => {
     setEditingItem(null)
-    setFormData({
-      projectCode: '',
-      productCode: '',
-      productName: '',
-      spec1: '',
-      spec2: '',
-      spec3: '',
-      moq: 1,
-      productType: '완제품',
-      unit: 'EA',
-      effectiveStartDate: new Date().toISOString().slice(0, 10),
-      effectiveEndDate: '2099-12-31',
-      vehicleModelId: '',
-      primarySupplier: 'DOMESTIC',
-      mainPartnerId: '',
-      subPartnerId: '',
-      domesticRatio: 100,
-      domesticLeadTime: 3,
-      overseasLeadTime: 14,
-      unitPrice: 0,
-      currency: 'KRW',
-      isActive: true,
-    })
     setDialogOpen(true)
   }
 
   const handleEdit = (item: ProductRow) => {
     setEditingItem(item)
-    setFormData({
-      projectCode: item.projectCode,
-      productCode: item.productCode,
-      productName: item.productName,
-      spec1: item.spec1 ?? '',
-      spec2: item.spec2 ?? '',
-      spec3: item.spec3 ?? '',
-      moq: item.moq,
-      productType: item.productType,
-      unit: item.unit,
-      effectiveStartDate: item.effectiveStartDate ?? '',
-      effectiveEndDate: item.effectiveEndDate ?? '',
-      vehicleModelId: item.vehicleModelId,
-      primarySupplier: item.primarySupplier,
-      mainPartnerId: '',
-      subPartnerId: '',
-      domesticRatio: item.domesticRatio,
-      domesticLeadTime: item.domesticLeadTime,
-      overseasLeadTime: item.overseasLeadTime,
-      unitPrice: item.unitPrice,
-      currency: item.currency,
-      isActive: item.isActive,
-    })
     setDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('이 제품을 삭제하시겠습니까?')) return
+    const confirmed = await confirm({
+      title: '제품 삭제',
+      description: '이 제품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
+
     try {
       await productRepository.delete(id)
       await loadData()
       toast({ title: '삭제 완료' })
     } catch (error) {
       console.error('삭제 실패:', error)
-      toast({ title: '삭제 실패', variant: 'destructive' })
+      toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
     }
   }
 
-  const handleSubmit = async () => {
+  const handleFormSubmit = async (formData: ProductFormData) => {
+    setFormLoading(true)
     try {
       const product = Product.create({
         id: editingItem?.id ?? crypto.randomUUID(),
-        productCode: formData.productCode,
-        productName: formData.productName,
-        vehicleModelId: formData.vehicleModelId || undefined,
-        primarySupplier: SupplierType.fromString(formData.primarySupplier),
-        mainPartnerId: formData.mainPartnerId || undefined,
-        subPartnerId: formData.subPartnerId || undefined,
-        domesticRatio: formData.domesticRatio,
-        domesticLeadTime: formData.domesticLeadTime,
-        overseasLeadTime: formData.overseasLeadTime,
-        unitPrice: formData.unitPrice
-          ? Money.create(formData.unitPrice, formData.currency as 'KRW' | 'USD')
+        productCode: formData.product_code,
+        productName: formData.product_name,
+        vehicleModelId: formData.vehicle_model_id || undefined,
+        primarySupplier: SupplierType.fromString(formData.primary_supplier),
+        mainPartnerId: formData.main_partner_id || undefined,
+        subPartnerId: formData.sub_partner_id || undefined,
+        domesticRatio: formData.domestic_ratio,
+        domesticLeadTime: formData.domestic_lead_time,
+        overseasLeadTime: formData.overseas_lead_time,
+        unitPrice: formData.unit_price
+          ? Money.create(formData.unit_price, formData.currency as 'KRW' | 'USD')
           : undefined,
-        isActive: formData.isActive,
+        isActive: formData.is_active,
+        // 확장 필드
+        projectCode: formData.project_code || undefined,
+        spec1: formData.spec1 || undefined,
+        spec2: formData.spec2 || undefined,
+        spec3: formData.spec3 || undefined,
+        moq: formData.moq || undefined,
+        productType: formData.product_type || undefined,
+        unit: formData.unit || undefined,
+        effectiveStartDate: formData.effective_start_date ? new Date(formData.effective_start_date) : undefined,
+        effectiveEndDate: formData.effective_end_date ? new Date(formData.effective_end_date) : undefined,
       })
 
       await productRepository.save(product)
@@ -435,8 +381,14 @@ export function ProductsPage() {
       toast({ title: editingItem ? '수정 완료' : '등록 완료' })
     } catch (error) {
       console.error('저장 실패:', error)
-      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '', variant: 'destructive' })
+      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
+    } finally {
+      setFormLoading(false)
     }
+  }
+
+  const handleFormCancel = () => {
+    setDialogOpen(false)
   }
 
   // 양식 다운로드
@@ -710,147 +662,38 @@ export function ProductsPage() {
           <DialogHeader>
             <DialogTitle>{editingItem ? '제품 수정' : '제품 추가'}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-4 py-4">
-            {/* 기본 정보 */}
-            <div className="space-y-2">
-              <Label>프로젝트코드 *</Label>
-              <Input value={formData.projectCode} onChange={(e) => setFormData({ ...formData, projectCode: e.target.value })} placeholder="Y200" />
-            </div>
-            <div className="space-y-2">
-              <Label>품번 *</Label>
-              <Input value={formData.productCode} onChange={(e) => setFormData({ ...formData, productCode: e.target.value })} disabled={!!editingItem} />
-            </div>
-            <div className="space-y-2">
-              <Label>품명 *</Label>
-              <Input value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value })} />
-            </div>
-
-            {/* 사양 정보 */}
-            <div className="space-y-2">
-              <Label>사양1</Label>
-              <Input value={formData.spec1} onChange={(e) => setFormData({ ...formData, spec1: e.target.value })} placeholder="사양1" />
-            </div>
-            <div className="space-y-2">
-              <Label>사양2</Label>
-              <Input value={formData.spec2} onChange={(e) => setFormData({ ...formData, spec2: e.target.value })} placeholder="사양2" />
-            </div>
-            <div className="space-y-2">
-              <Label>사양3</Label>
-              <Input value={formData.spec3} onChange={(e) => setFormData({ ...formData, spec3: e.target.value })} placeholder="사양3" />
-            </div>
-
-            {/* 수량/유형 정보 */}
-            <div className="space-y-2">
-              <Label>MOQ</Label>
-              <Input type="number" min={1} value={formData.moq} onChange={(e) => setFormData({ ...formData, moq: parseInt(e.target.value) || 1 })} />
-            </div>
-            <div className="space-y-2">
-              <Label>품목유형</Label>
-              <Select value={formData.productType} onValueChange={(v) => setFormData({ ...formData, productType: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {PRODUCT_TYPE_OPTIONS.map((type) => (<SelectItem key={type} value={type}>{type}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>단위</Label>
-              <Select value={formData.unit} onValueChange={(v) => setFormData({ ...formData, unit: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {UNIT_OPTIONS.map((u) => (<SelectItem key={u} value={u}>{u}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 적용 기간 */}
-            <div className="space-y-2">
-              <Label>적용시작일</Label>
-              <Input type="date" value={formData.effectiveStartDate} onChange={(e) => setFormData({ ...formData, effectiveStartDate: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>적용완료일</Label>
-              <Input type="date" value={formData.effectiveEndDate} onChange={(e) => setFormData({ ...formData, effectiveEndDate: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>차종</Label>
-              <Select value={formData.vehicleModelId} onValueChange={(v) => setFormData({ ...formData, vehicleModelId: v })}>
-                <SelectTrigger><SelectValue placeholder="선택..." /></SelectTrigger>
-                <SelectContent>
-                  {vehicleModels.map((vm) => (<SelectItem key={vm.value} value={vm.value}>{vm.label}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 공급 정보 */}
-            <div className="space-y-2">
-              <Label>공급처 유형</Label>
-              <Select value={formData.primarySupplier} onValueChange={(v) => setFormData({ ...formData, primarySupplier: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DOMESTIC">국내</SelectItem>
-                  <SelectItem value="VIETNAM">베트남</SelectItem>
-                  <SelectItem value="BOTH">이원화</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.primarySupplier === 'BOTH' && (
-              <div className="space-y-2">
-                <Label>국내 비율 (%)</Label>
-                <Input type="number" min={0} max={100} value={formData.domesticRatio} onChange={(e) => setFormData({ ...formData, domesticRatio: parseInt(e.target.value) || 0 })} />
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>국내 거래처</Label>
-              <Select value={formData.mainPartnerId} onValueChange={(v) => setFormData({ ...formData, mainPartnerId: v })}>
-                <SelectTrigger><SelectValue placeholder="선택..." /></SelectTrigger>
-                <SelectContent>{partners.map((p) => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-            {(formData.primarySupplier === 'BOTH' || formData.primarySupplier === 'VIETNAM') && (
-              <div className="space-y-2">
-                <Label>베트남 거래처</Label>
-                <Select value={formData.subPartnerId} onValueChange={(v) => setFormData({ ...formData, subPartnerId: v })}>
-                  <SelectTrigger><SelectValue placeholder="선택..." /></SelectTrigger>
-                  <SelectContent>{partners.map((p) => (<SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>))}</SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* 리드타임 및 단가 */}
-            <div className="space-y-2">
-              <Label>국내 리드타임 (일)</Label>
-              <Input type="number" min={1} value={formData.domesticLeadTime} onChange={(e) => setFormData({ ...formData, domesticLeadTime: parseInt(e.target.value) || 1 })} />
-            </div>
-            <div className="space-y-2">
-              <Label>해외 리드타임 (일)</Label>
-              <Input type="number" min={1} value={formData.overseasLeadTime} onChange={(e) => setFormData({ ...formData, overseasLeadTime: parseInt(e.target.value) || 1 })} />
-            </div>
-            <div className="space-y-2">
-              <Label>단가</Label>
-              <Input type="number" min={0} value={formData.unitPrice} onChange={(e) => setFormData({ ...formData, unitPrice: parseInt(e.target.value) || 0 })} />
-            </div>
-            <div className="space-y-2">
-              <Label>통화</Label>
-              <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="KRW">KRW</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2 col-span-2">
-              <Switch checked={formData.isActive} onCheckedChange={(c) => setFormData({ ...formData, isActive: c })} />
-              <Label>활성화</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <ERPButton onClick={() => setDialogOpen(false)}>취소</ERPButton>
-            <ERPButton variant="primary" onClick={handleSubmit}>저장</ERPButton>
-          </DialogFooter>
+          <ProductForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            vehicleModels={vehicleModels}
+            partners={partners}
+            defaultValues={editingItem ? {
+              product_code: editingItem.productCode,
+              product_name: editingItem.productName,
+              vehicle_model_id: editingItem.vehicleModelId || null,
+              primary_supplier: editingItem.primarySupplier as 'DOMESTIC' | 'VIETNAM' | 'BOTH',
+              domestic_ratio: editingItem.domesticRatio,
+              domestic_lead_time: editingItem.domesticLeadTime,
+              overseas_lead_time: editingItem.overseasLeadTime,
+              unit_price: editingItem.unitPrice || null,
+              currency: editingItem.currency as 'KRW' | 'USD',
+              is_active: editingItem.isActive,
+              project_code: editingItem.projectCode || null,
+              spec1: editingItem.spec1 || null,
+              spec2: editingItem.spec2 || null,
+              spec3: editingItem.spec3 || null,
+              moq: editingItem.moq || null,
+              product_type: editingItem.productType || null,
+              unit: editingItem.unit || null,
+            } : undefined}
+            isEdit={!!editingItem}
+            isLoading={formLoading}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialogComponent />
 
       {/* 일괄 업로드 확인 다이얼로그 */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>

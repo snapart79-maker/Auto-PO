@@ -1,0 +1,124 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e10]: Auto PO - 자동발주시스템
+    - generic [ref=e11]: 경림테크(주)
+  - navigation [ref=e12]:
+    - button "대시보드" [ref=e13] [cursor=pointer]:
+      - img [ref=e14]
+      - text: 대시보드
+    - button "기준관리" [ref=e19] [cursor=pointer]:
+      - img [ref=e20]
+      - text: 기준관리
+    - button "입고/출고" [ref=e23] [cursor=pointer]:
+      - img [ref=e24]
+      - text: 입고/출고
+    - button "재고 관리" [ref=e26] [cursor=pointer]:
+      - img [ref=e27]
+      - text: 재고 관리
+    - button "발주 관리" [ref=e33] [cursor=pointer]:
+      - img [ref=e34]
+      - text: 발주 관리
+    - generic [ref=e37]:
+      - button "조회" [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+        - text: 조회
+      - button "설정" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+        - text: 설정
+      - button "닫기" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - text: 닫기
+  - generic [ref=e50]:
+    - complementary [ref=e51]:
+      - generic [ref=e53]: 대시보드
+      - navigation [ref=e54]:
+        - link "대시보드" [ref=e55] [cursor=pointer]:
+          - /url: /
+          - img [ref=e56]
+          - text: 대시보드
+    - generic [ref=e61]:
+      - generic [ref=e63]: ▶ 대시보드
+      - main [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - heading "대시보드" [level=1] [ref=e68]
+              - paragraph [ref=e69]: Auto PO 시스템 현황을 한눈에 확인하세요.
+            - button "새로고침" [ref=e71] [cursor=pointer]:
+              - img
+              - text: 새로고침
+          - generic [ref=e72]:
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - generic [ref=e75]:
+                  - heading "총 제품수" [level=3] [ref=e76]
+                  - img [ref=e77]
+                - generic [ref=e81]:
+                  - generic [ref=e82]: "0"
+                  - paragraph [ref=e83]: 활성 제품 기준
+              - generic [ref=e84]:
+                - generic [ref=e85]:
+                  - heading "거래처" [level=3] [ref=e86]
+                  - img [ref=e87]
+                - generic [ref=e92]:
+                  - generic [ref=e93]: "0"
+                  - paragraph [ref=e94]: 협력사/고객사 합계
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - heading "진행중 발주" [level=3] [ref=e97]
+                  - img [ref=e98]
+                - generic [ref=e101]:
+                  - generic [ref=e102]: "0"
+                  - paragraph [ref=e103]: 미완료 발주건
+              - generic [ref=e104]:
+                - generic [ref=e105]:
+                  - heading "긴급 알림" [level=3] [ref=e106]
+                  - img [ref=e107]
+                - generic [ref=e109]:
+                  - generic [ref=e110]: "0"
+                  - paragraph [ref=e111]: 재고 부족 품목
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - heading "발주 상태 분포" [level=3] [ref=e115]
+                - generic [ref=e116]:
+                  - paragraph [ref=e118]: 발주 데이터가 없습니다
+                  - generic [ref=e119]: 0건 총 발주
+              - generic [ref=e120]:
+                - generic [ref=e121]:
+                  - heading "재고 현황" [level=3] [ref=e122]:
+                    - generic [ref=e123]: 재고 현황
+                  - img [ref=e124]
+                - paragraph [ref=e130]: 재고 데이터가 없습니다
+              - generic [ref=e131]:
+                - heading "재고 부족 품목 현황" [level=3] [ref=e133]
+                - generic [ref=e134]:
+                  - paragraph [ref=e136]: 재고 부족 품목이 없습니다
+                  - generic [ref=e137]:
+                    - generic [ref=e140]: 위험 (<30%)
+                    - generic [ref=e143]: 주의 (30-50%)
+                    - generic [ref=e146]: 경고 (50-70%)
+                    - generic [ref=e149]: 발주점
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - generic [ref=e152]:
+                  - heading "최근 발주" [level=3] [ref=e153]
+                  - img [ref=e154]
+                - paragraph [ref=e158]: 최근 발주가 없습니다
+              - generic [ref=e159]:
+                - generic [ref=e160]:
+                  - heading "MRP 권고 현황" [level=3] [ref=e161]:
+                    - generic [ref=e162]: MRP 권고 현황
+                  - img [ref=e163]
+                - generic [ref=e168]:
+                  - img [ref=e169]
+                  - paragraph [ref=e172]: 재고 정상
+                  - paragraph [ref=e173]: 모든 품목이 안전 재고 이상입니다
+  - contentinfo [ref=e174]:
+    - generic [ref=e175]: "[Auto-PO] v1.0.0"
+    - generic [ref=e176]: 2025. 12. 29. (월) 오후 10:04
+```

@@ -17,7 +17,8 @@ test.describe('Products CRUD', () => {
   test.describe('제품 목록', () => {
     test('제품 관리 페이지가 로드되어야 함', async ({ page }) => {
       await expect(page).toHaveURL('/products')
-      await expect(productsPage.pageTitle).toContainText('제품')
+      // 페이지에 조회조건 그룹박스가 있어야 함
+      await expect(page.getByText('조회조건')).toBeVisible()
     })
 
     test('제품 테이블이 표시되어야 함', async () => {

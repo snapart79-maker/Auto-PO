@@ -45,6 +45,19 @@ export interface InitialInventoryRow {
 }
 
 /**
+ * 재고 조정 행
+ */
+export interface InventoryAdjustmentRow {
+  rowNumber: number
+  productCode: string
+  adjustmentDate: Date
+  adjustmentType: 'INCREASE' | 'DECREASE'
+  quantity: number
+  reason: 'PHYSICAL_COUNT' | 'LOSS' | 'DAMAGE' | 'OTHER'
+  remarks?: string
+}
+
+/**
  * Excel 파서 옵션
  */
 export interface ExcelParserOptions {

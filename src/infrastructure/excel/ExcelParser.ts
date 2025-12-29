@@ -8,6 +8,7 @@ import type {
   InventoryUploadRow,
   ShipmentPlanRow,
   InitialInventoryRow,
+  InventoryAdjustmentRow,
   ParseResult,
   ParseError,
   ColumnMapping,
@@ -328,6 +329,217 @@ export class ExcelParser {
       remarks: '비고',
     }
     return mapping[key] ?? key
+  }
+
+  /**
+   * 재고 조정 데이터 파싱
+   */
+  parseInventoryAdjustmentData(data: unknown[][]): { success: boolean; rows: InventoryAdjustmentRow[]; errors: ParseError[]; totalRows: number } {
+    if (data.length === 0) {
+      return { success: true, rows: [], errors: [], totalRows: 0 }
+    }
+
+    const headers = data[0] as string[]
+    const columnIndices = this.getInventoryAdjustmentColumnIndices(headers)
+
+    // 필수 컬럼 검증
+    const requiredColumns = ['productCode', 'adjustmentDate', 'adjustmentType', 'quantity', 'reason']
+    const missingColumns = requiredColumns.filter(
+      (col) => columnIndices[col as keyof typeof columnIndices] === undefined
+    )
+
+    if (missingColumns.length > 0) {
+      return {
+        success: false,
+        rows: [],
+        errors: [
+          {
+            row: 1,
+            column: 'header',
+            message: `필수 컬럼 누락: ${missingColumns.map((c) => this.getInventoryAdjustmentColumnName(c)).join(', ')}`,
+          },
+        ],
+        totalRows: data.length - 1,
+      }
+    }
+
+    const rows: InventoryAdjustmentRow[] = []
+    const errors: ParseError[] = []
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i] as unknown[]
+      const rowNumber = i + 1
+
+      try {
+        const parsedRow = this.parseInventoryAdjustmentRow(row, columnIndices, rowNumber)
+        if (parsedRow) {
+          rows.push(parsedRow)
+        }
+      } catch (error) {
+        if (error instanceof RowParseError) {
+          errors.push(...error.errors)
+        }
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      rows,
+      errors,
+      totalRows: data.length - 1,
+    }
+  }
+
+  /**
+   * 재고 조정 행 파싱
+   */
+  private parseInventoryAdjustmentRow(
+    row: unknown[],
+    columnIndices: Record<string, number | undefined>,
+    rowNumber: number
+  ): InventoryAdjustmentRow | null {
+    const errors: ParseError[] = []
+
+    const productCode = this.getString(row[columnIndices.productCode ?? -1])
+    const adjustmentDateRaw = row[columnIndices.adjustmentDate ?? -1]
+    const adjustmentTypeRaw = row[columnIndices.adjustmentType ?? -1]
+    const quantityRaw = row[columnIndices.quantity ?? -1]
+    const reasonRaw = row[columnIndices.reason ?? -1]
+    const remarks = this.getString(row[columnIndices.remarks ?? -1])
+
+    if (!productCode) {
+      errors.push({
+        row: rowNumber,
+        column: '품번',
+        message: '품번은 필수입니다',
+        value: productCode,
+      })
+    }
+
+    const adjustmentDate = this.parseDate(adjustmentDateRaw)
+    if (!adjustmentDate) {
+      errors.push({
+        row: rowNumber,
+        column: '조정일',
+        message: '올바른 날짜 형식이 아닙니다',
+        value: adjustmentDateRaw,
+      })
+    }
+
+    const adjustmentType = this.parseAdjustmentType(adjustmentTypeRaw)
+    if (!adjustmentType) {
+      errors.push({
+        row: rowNumber,
+        column: '조정유형',
+        message: '조정유형은 증가/INCREASE 또는 감소/DECREASE 중 하나입니다',
+        value: adjustmentTypeRaw,
+      })
+    }
+
+    const quantity = this.parseNumber(quantityRaw)
+    if (quantity === null || quantity <= 0) {
+      errors.push({
+        row: rowNumber,
+        column: '수량',
+        message: '수량은 1 이상이어야 합니다',
+        value: quantityRaw,
+      })
+    }
+
+    const reason = this.parseAdjustmentReason(reasonRaw)
+    if (!reason) {
+      errors.push({
+        row: rowNumber,
+        column: '사유',
+        message: '사유는 실사/분실/파손/기타 중 하나입니다',
+        value: reasonRaw,
+      })
+    }
+
+    if (errors.length > 0) {
+      throw new RowParseError(errors)
+    }
+
+    return {
+      rowNumber,
+      productCode: productCode!,
+      adjustmentDate: adjustmentDate!,
+      adjustmentType: adjustmentType!,
+      quantity: quantity!,
+      reason: reason!,
+      remarks: remarks ?? undefined,
+    }
+  }
+
+  /**
+   * 재고 조정 컬럼 인덱스 매핑
+   */
+  private getInventoryAdjustmentColumnIndices(
+    headers: string[]
+  ): Record<string, number | undefined> {
+    const columnNames: Record<string, string[]> = {
+      productCode: ['품번', 'product_code', 'productcode', 'code'],
+      adjustmentDate: ['조정일', 'adjustment_date', 'adjustmentdate', 'date'],
+      adjustmentType: ['조정유형', '유형', 'adjustment_type', 'adjustmenttype', 'type'],
+      quantity: ['수량', 'quantity', 'qty'],
+      reason: ['사유', '조정사유', 'reason'],
+      remarks: ['비고', 'remarks', 'memo', '메모'],
+    }
+
+    const indices: Record<string, number | undefined> = {}
+
+    for (const [key, names] of Object.entries(columnNames)) {
+      for (const name of names) {
+        const index = headers.findIndex(
+          (h) => h?.toLowerCase().trim() === name.toLowerCase().trim()
+        )
+        if (index !== -1) {
+          indices[key] = index
+          break
+        }
+      }
+    }
+
+    return indices
+  }
+
+  /**
+   * 재고 조정 컬럼 이름
+   */
+  private getInventoryAdjustmentColumnName(key: string): string {
+    const mapping: Record<string, string> = {
+      productCode: '품번',
+      adjustmentDate: '조정일',
+      adjustmentType: '조정유형',
+      quantity: '수량',
+      reason: '사유',
+      remarks: '비고',
+    }
+    return mapping[key] ?? key
+  }
+
+  /**
+   * 조정 유형 파싱
+   */
+  private parseAdjustmentType(value: unknown): 'INCREASE' | 'DECREASE' | null {
+    if (value === null || value === undefined) return null
+    const str = String(value).toUpperCase().trim()
+    if (str === 'INCREASE' || str === '증가' || str === '+' || str === '입고') return 'INCREASE'
+    if (str === 'DECREASE' || str === '감소' || str === '-' || str === '출고') return 'DECREASE'
+    return null
+  }
+
+  /**
+   * 조정 사유 파싱
+   */
+  private parseAdjustmentReason(value: unknown): 'PHYSICAL_COUNT' | 'LOSS' | 'DAMAGE' | 'OTHER' | null {
+    if (value === null || value === undefined) return null
+    const str = String(value).toUpperCase().trim()
+    if (str === 'PHYSICAL_COUNT' || str === '실사' || str === '재고실사') return 'PHYSICAL_COUNT'
+    if (str === 'LOSS' || str === '분실' || str === '도난') return 'LOSS'
+    if (str === 'DAMAGE' || str === '파손' || str === '손상') return 'DAMAGE'
+    if (str === 'OTHER' || str === '기타') return 'OTHER'
+    return null
   }
 
   /**

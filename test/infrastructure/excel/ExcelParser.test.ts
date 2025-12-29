@@ -330,4 +330,163 @@ describe('ExcelParser', () => {
       expect(result.rows[0]?.currency).toBe('KRW')
     })
   })
+
+  describe('parseInventoryAdjustmentData', () => {
+    it('재고 조정 데이터를 올바르게 파싱해야 함', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유', '비고'],
+        ['PROD-001', new Date('2025-01-15'), '증가', 100, '실사', '실사 조정'],
+        ['PROD-002', new Date('2025-01-16'), '감소', 50, '파손', '파손 폐기'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(true)
+      expect(result.rows).toHaveLength(2)
+      expect(result.rows[0]).toMatchObject({
+        rowNumber: 2,
+        productCode: 'PROD-001',
+        adjustmentType: 'INCREASE',
+        quantity: 100,
+        reason: 'PHYSICAL_COUNT',
+        remarks: '실사 조정',
+      })
+      expect(result.rows[1]).toMatchObject({
+        rowNumber: 3,
+        productCode: 'PROD-002',
+        adjustmentType: 'DECREASE',
+        quantity: 50,
+        reason: 'DAMAGE',
+        remarks: '파손 폐기',
+      })
+    })
+
+    it('영문 조정유형 (INCREASE/DECREASE) 지원', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), 'INCREASE', 100, 'PHYSICAL_COUNT'],
+        ['PROD-002', new Date('2025-01-16'), 'DECREASE', 50, 'LOSS'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(true)
+      expect(result.rows[0]?.adjustmentType).toBe('INCREASE')
+      expect(result.rows[1]?.adjustmentType).toBe('DECREASE')
+    })
+
+    it('빈 데이터 배열 처리', () => {
+      const mockData: unknown[][] = []
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(true)
+      expect(result.rows).toHaveLength(0)
+      expect(result.totalRows).toBe(0)
+    })
+
+    it('필수 컬럼 누락 시 에러 반환', () => {
+      const mockData = [
+        ['품번', '조정일', '수량'], // 조정유형, 사유 컬럼 누락
+        ['PROD-001', new Date('2025-01-15'), 100],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(false)
+      expect(result.errors.length).toBeGreaterThan(0)
+      expect(result.errors[0]?.message).toContain('필수 컬럼')
+    })
+
+    it('잘못된 조정유형은 에러 처리', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), 'INVALID', 100, '실사'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.errors.length).toBeGreaterThan(0)
+      expect(result.errors.some((e) => e.column === '조정유형')).toBe(true)
+    })
+
+    it('잘못된 사유는 에러 처리', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), '증가', 100, 'INVALID_REASON'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.errors.length).toBeGreaterThan(0)
+      expect(result.errors.some((e) => e.column === '사유')).toBe(true)
+    })
+
+    it('0 이하의 수량은 에러 처리', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), '증가', 0, '실사'],
+        ['PROD-002', new Date('2025-01-16'), '감소', -10, '분실'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.errors).toHaveLength(2)
+      expect(result.errors.every((e) => e.column === '수량')).toBe(true)
+    })
+
+    it('모든 사유 유형 파싱 확인', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), '증가', 100, '실사'],
+        ['PROD-002', new Date('2025-01-16'), '감소', 50, '분실'],
+        ['PROD-003', new Date('2025-01-17'), '감소', 30, '파손'],
+        ['PROD-004', new Date('2025-01-18'), '감소', 20, '기타'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(true)
+      expect(result.rows[0]?.reason).toBe('PHYSICAL_COUNT')
+      expect(result.rows[1]?.reason).toBe('LOSS')
+      expect(result.rows[2]?.reason).toBe('DAMAGE')
+      expect(result.rows[3]?.reason).toBe('OTHER')
+    })
+
+    it('비고 없이도 파싱 가능', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['PROD-001', new Date('2025-01-15'), '증가', 100, '실사'],
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.success).toBe(true)
+      expect(result.rows[0]?.remarks).toBeUndefined()
+    })
+
+    it('여러 행의 에러를 모두 수집', () => {
+      const mockData = [
+        ['품번', '조정일', '조정유형', '수량', '사유'],
+        ['', new Date('2025-01-15'), '증가', 100, '실사'], // 품번 누락
+        ['PROD-002', new Date('2025-01-16'), '잘못된', 50, '분실'], // 잘못된 조정유형
+        ['PROD-003', new Date('2025-01-17'), '감소', 30, '잘못된사유'], // 잘못된 사유
+      ]
+      const parser = new ExcelParser()
+
+      const result = parser.parseInventoryAdjustmentData(mockData)
+
+      expect(result.errors.length).toBe(3)
+      expect(result.rows).toHaveLength(0)
+    })
+  })
 })

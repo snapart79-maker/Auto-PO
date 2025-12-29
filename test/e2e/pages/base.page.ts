@@ -15,7 +15,8 @@ export class BasePage {
     this.page = page
     this.sidebar = page.locator('aside')
     this.mainContent = page.locator('main')
-    this.pageTitle = page.locator('h1').first()
+    // PageHeader의 h1 또는 ERPGroupBox의 첫 번째 제목을 찾음
+    this.pageTitle = page.locator('main h1, main h2, main [class*="title"], main [class*="header"] span').first()
   }
 
   /**

@@ -1,11 +1,13 @@
 /**
  * InventoryAdjustmentPage - 재고 조정 페이지 (ERP 스타일)
  * PRD 5.4 재고 조정
+ * Phase 4: 일괄등록 기능 추가
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback, useRef } from 'react'
 import { format } from 'date-fns'
-import { RefreshCcw, Download, Trash2, Search, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { RefreshCcw, Download, Trash2, Search, RefreshCw, TrendingUp, TrendingDown, Upload } from 'lucide-react'
 import { ERPTable } from '../components/ERPTable'
 import {
   ERPGroupBox,
@@ -32,6 +34,7 @@ import {
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
+import { useToast } from '../components/ui/toast'
 import {
   useInventoryAdjustment,
   type InventoryAdjustmentItem,
@@ -39,6 +42,9 @@ import {
 } from '../hooks/useInventoryAdjustment'
 import type { AdjustmentType, AdjustmentReason } from '@domain/entities/InventoryAdjustment'
 import { supabase } from '@infrastructure/supabase/client'
+import { ExcelParser } from '@infrastructure/excel/ExcelParser'
+import { BulkUpload, type BulkUploadColumn, type ParseError as BulkParseError } from '../components/common/BulkUpload'
+import type { InventoryAdjustmentRow } from '@infrastructure/excel/types'
 import type { ColumnDef } from '@tanstack/react-table'
 
 function formatNumber(value: number): string {
@@ -63,8 +69,39 @@ interface ProductOption {
   productName: string
 }
 
+// 일괄업로드 타입 정의
+interface BulkUploadData {
+  productCode: string
+  adjustmentDate: Date
+  adjustmentType: 'INCREASE' | 'DECREASE'
+  quantity: number
+  reason: 'PHYSICAL_COUNT' | 'LOSS' | 'DAMAGE' | 'OTHER'
+  remarks?: string
+}
+
+// 일괄업로드 컬럼 정의
+const BULK_UPLOAD_COLUMNS: BulkUploadColumn<BulkUploadData>[] = [
+  { key: 'productCode', header: '품번' },
+  { key: 'adjustmentDate', header: '조정일', format: (v) => v instanceof Date ? format(v, 'yyyy-MM-dd') : String(v) },
+  { key: 'adjustmentType', header: '조정유형', align: 'center', format: (v) => v === 'INCREASE' ? '증가' : '감소' },
+  { key: 'quantity', header: '수량', align: 'right' },
+  { key: 'reason', header: '사유', format: (v) => {
+    const reasonLabels: Record<string, string> = { PHYSICAL_COUNT: '실사', LOSS: '분실', DAMAGE: '파손', OTHER: '기타' }
+    return reasonLabels[String(v)] ?? String(v)
+  }},
+  { key: 'remarks', header: '비고' },
+]
+
+// 일괄업로드 템플릿 데이터
+const BULK_UPLOAD_TEMPLATE = [
+  ['품번', '조정일', '조정유형', '수량', '사유', '비고'],
+  ['SAMPLE-001', '2024-01-15', '증가', 100, '실사', '재고 실사 후 추가'],
+  ['SAMPLE-002', '2024-01-15', '감소', 50, '파손', '운반 중 파손'],
+]
+
 export function InventoryAdjustmentPage() {
   const { items, summary, loading, error, search, refresh, create, remove } = useInventoryAdjustment()
+  const { toast } = useToast()
 
   // 조회조건 상태
   const [startDate, setStartDate] = useState(() => {
@@ -76,6 +113,7 @@ export function InventoryAdjustmentPage() {
 
   // 등록 다이얼로그 상태
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [products, setProducts] = useState<ProductOption[]>([])
   const [selectedProductId, setSelectedProductId] = useState<string>('')
   const [adjustmentDate, setAdjustmentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
@@ -239,6 +277,87 @@ export function InventoryAdjustmentPage() {
     }
   }
 
+  // 일괄업로드 파일 파싱
+  const handleParseFile = useCallback(async (buffer: ArrayBuffer): Promise<{ rows: BulkUploadData[]; errors: BulkParseError[] }> => {
+    const parser = new ExcelParser()
+    const rawData = parser.parseFromBuffer(buffer)
+    const result = parser.parseInventoryAdjustmentData(rawData)
+
+    const rows: BulkUploadData[] = result.rows.map((row: InventoryAdjustmentRow) => ({
+      productCode: row.productCode,
+      adjustmentDate: row.adjustmentDate,
+      adjustmentType: row.adjustmentType,
+      quantity: row.quantity,
+      reason: row.reason,
+      remarks: row.remarks,
+    }))
+
+    return { rows, errors: result.errors }
+  }, [])
+
+  // 일괄업로드 저장
+  const handleBulkUploadSave = useCallback(async (data: BulkUploadData[]) => {
+    // 품번으로 product_id 조회
+    const productCodes = [...new Set(data.map(d => d.productCode))]
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('id, product_code')
+      .in('product_code', productCodes)
+      .eq('is_active', true)
+
+    if (productsError) {
+      throw new Error('품목 정보 조회에 실패했습니다.')
+    }
+
+    const productMap = new Map((productsData ?? []).map(p => [p.product_code, p.id]))
+
+    // 존재하지 않는 품번 확인
+    const missingCodes = productCodes.filter(code => !productMap.has(code))
+    if (missingCodes.length > 0) {
+      throw new Error(`존재하지 않는 품번: ${missingCodes.join(', ')}`)
+    }
+
+    // 순차적으로 저장 (useInventoryAdjustment의 create 사용)
+    let successCount = 0
+    const errors: string[] = []
+
+    for (const row of data) {
+      try {
+        const productId = productMap.get(row.productCode)
+        if (!productId) continue
+
+        const input: InventoryAdjustmentInput = {
+          adjustmentDate: row.adjustmentDate,
+          productId,
+          adjustmentType: row.adjustmentType,
+          quantity: row.quantity,
+          reason: row.reason,
+          remarks: row.remarks,
+        }
+        await create(input)
+        successCount++
+      } catch (err) {
+        errors.push(`${row.productCode}: ${err instanceof Error ? err.message : '저장 실패'}`)
+      }
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: '일부 저장 실패',
+        description: `${successCount}건 저장, ${errors.length}건 실패`,
+        variant: 'destructive',
+      })
+    } else {
+      toast({
+        title: '일괄 등록 완료',
+        description: `${successCount}건이 성공적으로 등록되었습니다.`,
+      })
+    }
+
+    setBulkUploadOpen(false)
+    refresh()
+  }, [create, refresh, toast])
+
   return (
     <div className="h-full flex flex-col gap-2">
       {/* 상단 영역: 조회조건 + 기능 */}
@@ -267,7 +386,7 @@ export function InventoryAdjustmentPage() {
           className="w-36"
           buttons={[
             { label: '재고 조정', icon: <RefreshCcw className="h-3 w-3" />, onClick: handleOpenDialog },
-            { label: '엑셀다운로드', icon: <Download className="h-3 w-3" />, disabled: true },
+            { label: '엑셀업로드', icon: <Upload className="h-3 w-3" />, onClick: () => setBulkUploadOpen(true) },
             { label: '새로고침', icon: <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />, onClick: refresh },
           ]}
         />
@@ -440,6 +559,29 @@ export function InventoryAdjustmentPage() {
               {submitting ? '등록 중...' : '등록'}
             </ERPButton>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 일괄업로드 다이얼로그 */}
+      <Dialog open={bulkUploadOpen} onOpenChange={setBulkUploadOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>재고 조정 일괄등록</DialogTitle>
+            <DialogDescription>
+              엑셀 파일을 업로드하여 재고 조정 내역을 일괄 등록합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <BulkUpload<BulkUploadData>
+            title="재고 조정 일괄등록"
+            columns={BULK_UPLOAD_COLUMNS}
+            parseFile={handleParseFile}
+            onSave={handleBulkUploadSave}
+            onCancel={() => setBulkUploadOpen(false)}
+            templateFileName="재고조정_일괄등록_템플릿.xlsx"
+            templateData={BULK_UPLOAD_TEMPLATE}
+            templateSheetName="재고조정"
+            columnWidths={[{ wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 30 }]}
+          />
         </DialogContent>
       </Dialog>
     </div>

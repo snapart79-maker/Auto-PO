@@ -1,9 +1,10 @@
 /**
  * ShipmentPlanPage - 출고 계획 등록 페이지 (ERP 스타일)
  * PRD 6.2 출고 계획 등록
+ * Phase 4: 일괄등록 기능 추가
  */
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { PlusCircle, Upload, Download, Trash2, Search, RefreshCw } from 'lucide-react'
 import { ERPTable } from '../components/ERPTable'
@@ -32,6 +33,7 @@ import {
 } from '../components/ui/select'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { useToast } from '../components/ui/toast'
 import {
   useShipmentPlan,
   type ShipmentPlanItem,
@@ -39,6 +41,8 @@ import {
 } from '../hooks/useShipmentPlan'
 import type { PlanType } from '@domain/entities/ShipmentPlan'
 import { supabase } from '@infrastructure/supabase/client'
+import { ExcelParser } from '@infrastructure/excel/ExcelParser'
+import { BulkUpload, type BulkUploadColumn, type ParseError as BulkParseError } from '../components/common/BulkUpload'
 import type { ColumnDef } from '@tanstack/react-table'
 
 function formatNumber(value: number): string {
@@ -64,8 +68,39 @@ interface ProductOption {
   productName: string
 }
 
+// 일괄업로드 타입 정의
+interface BulkUploadData {
+  partnerCode: string
+  productCode: string
+  planDate: Date
+  planType: PlanType
+  plannedQuantity: number
+  vehicleModelCode?: string
+}
+
+// 일괄업로드 컬럼 정의
+const BULK_UPLOAD_COLUMNS: BulkUploadColumn<BulkUploadData>[] = [
+  { key: 'partnerCode', header: '고객사코드' },
+  { key: 'productCode', header: '품번' },
+  { key: 'planDate', header: '납품일', format: (v) => v instanceof Date ? format(v, 'yyyy-MM-dd') : String(v) },
+  { key: 'planType', header: '유형', align: 'center', format: (v) => {
+    const labels: Record<string, string> = { DAILY: '일자별', WEEKLY: '주간별', MONTHLY: '월간별', YEARLY: '연간별' }
+    return labels[String(v)] ?? String(v)
+  }},
+  { key: 'plannedQuantity', header: '수량', align: 'right' },
+  { key: 'vehicleModelCode', header: '차종코드' },
+]
+
+// 일괄업로드 템플릿 데이터
+const BULK_UPLOAD_TEMPLATE = [
+  ['고객사코드', '품번', '납품일', '유형', '수량', '차종코드'],
+  ['CUST-001', 'PROD-001', '2024-01-15', '일자별', 100, 'VM-001'],
+  ['CUST-001', 'PROD-002', '2024-01-15', '주간별', 500, ''],
+]
+
 export function ShipmentPlanPage() {
   const { items, loading, error, search, refresh, create, remove, summary } = useShipmentPlan()
+  const { toast } = useToast()
 
   // 조회조건 상태
   const [filterStartDate, setFilterStartDate] = useState<string>('')
@@ -75,6 +110,7 @@ export function ShipmentPlanPage() {
 
   // 등록 다이얼로그 상태
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false)
   const [partners, setPartners] = useState<PartnerOption[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('')
@@ -256,6 +292,106 @@ export function ShipmentPlanPage() {
     }
   }
 
+  // 일괄업로드 파일 파싱
+  const handleParseFile = useCallback(async (buffer: ArrayBuffer): Promise<{ rows: BulkUploadData[]; errors: BulkParseError[] }> => {
+    const parser = new ExcelParser()
+    const rawData = parser.parseFromBuffer(buffer)
+    const result = parser.parseShipmentPlanData(rawData)
+
+    const rows: BulkUploadData[] = result.rows.map((row) => ({
+      partnerCode: row.partnerCode,
+      productCode: row.productCode,
+      planDate: row.transactionDate,
+      planType: row.planType ?? 'DAILY',
+      plannedQuantity: row.plannedQuantity,
+      vehicleModelCode: row.vehicleModelCode,
+    }))
+
+    return { rows, errors: result.errors }
+  }, [])
+
+  // 일괄업로드 저장
+  const handleBulkUploadSave = useCallback(async (data: BulkUploadData[]) => {
+    // 고객사코드로 partner_id 조회
+    const partnerCodes = [...new Set(data.map(d => d.partnerCode))]
+    const { data: partnersData, error: partnersError } = await supabase
+      .from('partners')
+      .select('id, partner_code')
+      .in('partner_code', partnerCodes)
+      .eq('is_active', true)
+
+    if (partnersError) {
+      throw new Error('고객사 정보 조회에 실패했습니다.')
+    }
+
+    const partnerMap = new Map((partnersData ?? []).map(p => [p.partner_code, p.id]))
+
+    // 품번으로 product_id 조회
+    const productCodes = [...new Set(data.map(d => d.productCode))]
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('id, product_code')
+      .in('product_code', productCodes)
+      .eq('is_active', true)
+
+    if (productsError) {
+      throw new Error('품목 정보 조회에 실패했습니다.')
+    }
+
+    const productMap = new Map((productsData ?? []).map(p => [p.product_code, p.id]))
+
+    // 존재하지 않는 코드 확인
+    const missingPartners = partnerCodes.filter(code => !partnerMap.has(code))
+    const missingProducts = productCodes.filter(code => !productMap.has(code))
+
+    if (missingPartners.length > 0) {
+      throw new Error(`존재하지 않는 고객사: ${missingPartners.join(', ')}`)
+    }
+    if (missingProducts.length > 0) {
+      throw new Error(`존재하지 않는 품번: ${missingProducts.join(', ')}`)
+    }
+
+    // 순차적으로 저장
+    let successCount = 0
+    const errors: string[] = []
+
+    for (const row of data) {
+      try {
+        const partnerId = partnerMap.get(row.partnerCode)
+        const productId = productMap.get(row.productCode)
+        if (!partnerId || !productId) continue
+
+        const input: ShipmentPlanInput = {
+          planDate: row.planDate,
+          planType: row.planType,
+          partnerId,
+          productId,
+          plannedQuantity: row.plannedQuantity,
+        }
+        await create(input)
+        successCount++
+      } catch (err) {
+        errors.push(`${row.partnerCode}/${row.productCode}: ${err instanceof Error ? err.message : '저장 실패'}`)
+      }
+    }
+
+    if (errors.length > 0) {
+      toast({
+        title: '일부 저장 실패',
+        description: `${successCount}건 저장, ${errors.length}건 실패`,
+        variant: 'destructive',
+      })
+    } else {
+      toast({
+        title: '일괄 등록 완료',
+        description: `${successCount}건이 성공적으로 등록되었습니다.`,
+      })
+    }
+
+    setBulkUploadOpen(false)
+    refresh()
+  }, [create, refresh, toast])
+
   // 고객사별 요약
   const partnerSummary = useMemo(() => {
     const map = new Map<string, { name: string; count: number; totalQty: number }>()
@@ -323,7 +459,7 @@ export function ShipmentPlanPage() {
           className="w-36"
           buttons={[
             { label: '개별등록', icon: <PlusCircle className="h-3 w-3" />, onClick: handleOpenDialog },
-            { label: '엑셀업로드', icon: <Upload className="h-3 w-3" />, disabled: true },
+            { label: '엑셀업로드', icon: <Upload className="h-3 w-3" />, onClick: () => setBulkUploadOpen(true) },
             { label: '엑셀다운로드', icon: <Download className="h-3 w-3" />, disabled: true },
             { label: '새로고침', icon: <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />, onClick: refresh },
           ]}
@@ -472,6 +608,29 @@ export function ShipmentPlanPage() {
               {submitting ? '등록 중...' : '등록'}
             </ERPButton>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 일괄업로드 다이얼로그 */}
+      <Dialog open={bulkUploadOpen} onOpenChange={setBulkUploadOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>출고 계획 일괄등록</DialogTitle>
+            <DialogDescription>
+              엑셀 파일을 업로드하여 출고 계획을 일괄 등록합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <BulkUpload<BulkUploadData>
+            title="출고 계획 일괄등록"
+            columns={BULK_UPLOAD_COLUMNS}
+            parseFile={handleParseFile}
+            onSave={handleBulkUploadSave}
+            onCancel={() => setBulkUploadOpen(false)}
+            templateFileName="출고계획_일괄등록_템플릿.xlsx"
+            templateData={BULK_UPLOAD_TEMPLATE}
+            templateSheetName="출고계획"
+            columnWidths={[{ wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }]}
+          />
         </DialogContent>
       </Dialog>
     </div>

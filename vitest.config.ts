@@ -4,7 +4,8 @@ import path from 'path'
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
+    setupFiles: ['./test/setup.ts'],
     include: ['test/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['node_modules', 'dist', 'test/e2e/**'],
     coverage: {
@@ -35,6 +36,8 @@ export default defineConfig({
       '@application': path.resolve(__dirname, './src/application'),
       '@interface': path.resolve(__dirname, './src/interface'),
       '@infrastructure': path.resolve(__dirname, './src/infrastructure'),
+      '@lib': path.resolve(__dirname, './src/lib'),
+      '@schemas': path.resolve(__dirname, './src/schemas'),
       '@test': path.resolve(__dirname, './test'),
     },
   },

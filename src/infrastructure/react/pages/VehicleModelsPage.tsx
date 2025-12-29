@@ -1,6 +1,7 @@
 /**
  * VehicleModelsPage - 차종 마스터 관리 페이지 (ERP 스타일)
  * 차종 선택 시 해당 품번 목록 조회 (읽기 전용)
+ * Phase 3: React Hook Form + Zod + ConfirmDialog 적용
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -21,14 +22,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../components/ui/dialog'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Switch } from '../components/ui/switch'
 import { useToast } from '../components/ui/toast'
 import { SupabaseVehicleModelRepository, SupabaseProductRepository } from '@infrastructure/repositories'
 import { VehicleModel } from '@domain/entities/VehicleModel'
 import { Plus, Pencil, Trash2, Upload, RefreshCw, Search, FileDown, ExternalLink } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { VehicleModelForm } from '../components/forms/VehicleModelForm'
+import { useConfirmDialog } from '../components/common/ConfirmDialog'
+import type { VehicleModelFormData } from '@infrastructure/schemas'
 
 const vehicleModelRepository = new SupabaseVehicleModelRepository()
 const productRepository = new SupabaseProductRepository()
@@ -61,6 +62,7 @@ export function VehicleModelsPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog()
 
   const [data, setData] = useState<VehicleModelRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,12 +70,7 @@ export function VehicleModelsPage() {
   const [filterCode, setFilterCode] = useState('')
   const [filterName, setFilterName] = useState('')
   const [editingItem, setEditingItem] = useState<VehicleModelRow | null>(null)
-  const [formData, setFormData] = useState({
-    vehicleCode: '',
-    vehicleName: '',
-    description: '',
-    isActive: true,
-  })
+  const [formLoading, setFormLoading] = useState(false)
 
   // 선택된 차종 및 품번 목록
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleModelRow | null>(null)
@@ -213,23 +210,25 @@ export function VehicleModelsPage() {
 
   const handleAdd = () => {
     setEditingItem(null)
-    setFormData({ vehicleCode: '', vehicleName: '', description: '', isActive: true })
     setDialogOpen(true)
   }
 
   const handleEdit = (item: VehicleModelRow) => {
     setEditingItem(item)
-    setFormData({
-      vehicleCode: item.vehicleCode,
-      vehicleName: item.vehicleName,
-      description: item.description,
-      isActive: item.isActive,
-    })
     setDialogOpen(true)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('이 차종을 삭제하시겠습니까?')) return
+    const confirmed = await confirm({
+      title: '차종 삭제',
+      description: '이 차종을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      cancelText: '취소',
+      variant: 'destructive',
+    })
+
+    if (!confirmed) return
+
     try {
       await vehicleModelRepository.delete(id)
       await loadData()
@@ -240,18 +239,19 @@ export function VehicleModelsPage() {
       toast({ title: '삭제 완료' })
     } catch (error) {
       console.error('삭제 실패:', error)
-      toast({ title: '삭제 실패', variant: 'destructive' })
+      toast({ title: '삭제 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
     }
   }
 
-  const handleSubmit = async () => {
+  const handleFormSubmit = async (formData: VehicleModelFormData) => {
+    setFormLoading(true)
     try {
       const model = VehicleModel.create({
         id: editingItem?.id ?? crypto.randomUUID(),
-        vehicleCode: formData.vehicleCode,
-        vehicleName: formData.vehicleName,
+        vehicleCode: formData.vehicle_code,
+        vehicleName: formData.vehicle_name,
         description: formData.description || undefined,
-        isActive: formData.isActive,
+        isActive: formData.is_active,
       })
 
       await vehicleModelRepository.save(model)
@@ -260,8 +260,14 @@ export function VehicleModelsPage() {
       toast({ title: editingItem ? '수정 완료' : '등록 완료' })
     } catch (error) {
       console.error('저장 실패:', error)
-      toast({ title: '저장 실패', variant: 'destructive' })
+      toast({ title: '저장 실패', description: error instanceof Error ? error.message : '알 수 없는 오류', variant: 'destructive' })
+    } finally {
+      setFormLoading(false)
     }
+  }
+
+  const handleFormCancel = () => {
+    setDialogOpen(false)
   }
 
   // 양식 다운로드
@@ -517,30 +523,23 @@ export function VehicleModelsPage() {
           <DialogHeader>
             <DialogTitle>{editingItem ? '차종 수정' : '차종 추가'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>차종코드 *</Label>
-              <Input value={formData.vehicleCode} onChange={(e) => setFormData({ ...formData, vehicleCode: e.target.value })} disabled={!!editingItem} />
-            </div>
-            <div className="space-y-2">
-              <Label>차종명 *</Label>
-              <Input value={formData.vehicleName} onChange={(e) => setFormData({ ...formData, vehicleName: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>설명</Label>
-              <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={formData.isActive} onCheckedChange={(c) => setFormData({ ...formData, isActive: c })} />
-              <Label>활성화</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <ERPButton onClick={() => setDialogOpen(false)}>취소</ERPButton>
-            <ERPButton variant="primary" onClick={handleSubmit}>저장</ERPButton>
-          </DialogFooter>
+          <VehicleModelForm
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+            defaultValues={editingItem ? {
+              vehicle_code: editingItem.vehicleCode,
+              vehicle_name: editingItem.vehicleName,
+              description: editingItem.description || undefined,
+              is_active: editingItem.isActive,
+            } : undefined}
+            isEdit={!!editingItem}
+            isLoading={formLoading}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialogComponent />
 
       {/* 일괄 업로드 확인 다이얼로그 */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
