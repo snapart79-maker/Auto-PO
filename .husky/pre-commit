@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+# Auto-PO Pre-commit Hook
+# 커밋 전 자동으로 lint, type-check 실행
+
+echo "🔍 Pre-commit 검사 시작..."
+
+# 1. lint-staged 실행 (변경된 파일만 lint --fix)
+echo "📝 ESLint 자동 수정 중..."
+npx lint-staged
+
+# 2. TypeScript 타입 체크
+echo "🔷 TypeScript 타입 체크 중..."
+pnpm run type-check
+if [ $? -ne 0 ]; then
+  echo "❌ TypeScript 오류가 있습니다. 수정 후 다시 커밋하세요."
+  exit 1
+fi
+
+echo "✅ Pre-commit 검사 완료!"
